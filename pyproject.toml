@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vcp-screener"
+version = "0.1.0"
+description = "VCP Stock Screener for NSE based on Mark Minervini methodology"
+requires-python = ">=3.11"
+dependencies = [
+    "yfinance>=0.2.31",
+    "sqlalchemy>=2.0",
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "click>=8.1",
+    "rich>=13.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "streamlit>=1.28",
+    "plotly>=5.18",
+    "schedule>=1.2",
+    "scipy>=1.11",
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "pytest-cov>=4.1"]
+
+[project.scripts]
+vcp = "vcp_screener.cli.main:cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]
