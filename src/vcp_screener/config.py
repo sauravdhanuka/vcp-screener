@@ -77,7 +77,17 @@ class Settings(BaseSettings):
     model_config = {"env_prefix": "VCP_"}
 
     def model_post_init(self, __context):
-        self.data_dir.mkdir(parents=True, exist_ok=True)
+        # self.data_dir.mkdir(parents=True, exist_ok=True)
+        import tempfile
+        try:
+            self.data_dir.mkdir(parents=True,exist_ok = True)
+            test_file = self.data_dir / ".write_test"
+            test_file.touch()
+            test_file.unlink()
+        except(PermissionError,OSError):
+            self.data_dir = Path(tempfile.gettempdir())
+            self.data_dir.mkdir(parents=True,exist_ok=True)
+            self.db_path = self.data_dir / "vcp_screener.db"
         if not self.db_url:
             self.db_url = f"sqlite:///{self.db_path}"
 
