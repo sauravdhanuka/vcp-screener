@@ -132,6 +132,7 @@ This installs all dependencies (yfinance, pandas, streamlit, plotly, etc.) and r
 python -m pip install -e ".[dev]"
 ```
 
+
 ### Step 5: Download Stock Data
 
 ```cmd
