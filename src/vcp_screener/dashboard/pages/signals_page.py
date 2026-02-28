@@ -80,16 +80,43 @@ def render():
     # Check for screening data
     if not _has_screening_data():
         st.warning("No screening data found. Download data and run screening first.")
-        if st.button("Download Data & Run Screening", type="primary"):
-            try:
-                _run_download_and_screen()
-                st.success("Done! Screening complete.")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error: {e}")
+        
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if st.button("Sync Latest Data (10d)", type="primary"):
+                try:
+                    with st.spinner("Step 1/3: Fetching NSE stock list..."):
+                        stocks = fetch_nse_stock_list()
+                        save_stock_list(stocks)
+                        symbols = [s["symbol"] for s in stocks]
+                    with st.spinner(f"Step 2/3: Downloading price data for {len(symbols)} stocks (10 days)..."):
+                        download_ohlcv(symbols, period="10d")
+                    with st.spinner("Step 3/3: Running VCP screening..."):
+                        run_screening()
+                    st.success("Done! Screening complete.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {e}")
+        with col_b:
+            if st.button("Initial Full Setup (5y)"):
+                try:
+                    with st.spinner("Step 1/3: Fetching NSE stock list..."):
+                        stocks = fetch_nse_stock_list()
+                        save_stock_list(stocks)
+                        symbols = [s["symbol"] for s in stocks]
+                    with st.spinner(f"Step 2/3: Downloading 5 years of data for {len(symbols)} stocks (This will take ~30-60 mins)..."):
+                        download_ohlcv(symbols, period="5y")
+                    with st.spinner("Step 3/3: Running VCP screening..."):
+                        run_screening()
+                    st.success("Done! Full setup complete.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {e}")
+                    
         st.info(
-            "**First time on Streamlit Cloud?** This will download ~30 days of NSE data "
-            "and run the VCP screener. Takes 5-10 minutes."
+            "**First time on Streamlit Cloud?** If you have no data at all, the 'Sync Latest Data' will be fast "
+            "but might not find candidates because the screener needs 200 days of history. Use 'Initial Full Setup' "
+            "to get the full database."
         )
         return
 
@@ -100,7 +127,7 @@ def render():
         st.session_state["signals"] = signals
 
     # Also offer re-screening
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("Re-run Screening"):
             with st.spinner("Running VCP screening..."):
@@ -108,10 +135,32 @@ def render():
             st.success("Screening complete! Click 'Check Buy Signals' to see results.")
             st.rerun()
     with col2:
-        if st.button("Refresh Price Data (30d)"):
+        if st.button("Sync Latest Data (10d)"):
             try:
-                _run_download_and_screen()
+                with st.spinner("Step 1/3: Fetching NSE stock list..."):
+                    stocks = fetch_nse_stock_list()
+                    save_stock_list(stocks)
+                    symbols = [s["symbol"] for s in stocks]
+                with st.spinner(f"Step 2/3: Downloading price data for {len(symbols)} stocks (10 days)..."):
+                    download_ohlcv(symbols, period="10d")
+                with st.spinner("Step 3/3: Running VCP screening..."):
+                    run_screening()
                 st.success("Data refreshed and screening complete!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error: {e}")
+    with col3:
+        if st.button("Full History Download (5y)"):
+            try:
+                with st.spinner("Step 1/3: Fetching NSE stock list..."):
+                    stocks = fetch_nse_stock_list()
+                    save_stock_list(stocks)
+                    symbols = [s["symbol"] for s in stocks]
+                with st.spinner(f"Step 2/3: Downloading 5 years of data for {len(symbols)} stocks (This will take ~30-60 mins)..."):
+                    download_ohlcv(symbols, period="5y")
+                with st.spinner("Step 3/3: Running VCP screening..."):
+                    run_screening()
+                st.success("Full data refreshed and screening complete!")
                 st.rerun()
             except Exception as e:
                 st.error(f"Error: {e}")

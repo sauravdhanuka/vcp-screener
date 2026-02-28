@@ -11,7 +11,7 @@ import pandas as pd
 from scipy.signal import argrelextrema
 
 from vcp_screener.config import settings
-from vcp_screener.services.indicators import average_volume
+from vcp_screener.services.indicators import average_volume, up_down_volume_ratio
 
 logger = logging.getLogger(__name__)
 
@@ -131,14 +131,25 @@ def detect_contractions(
 
     # Check that contractions are getting tighter (each range smaller than previous)
     valid_contractions = [contractions[0]]
+    is_monotonic = True
+    shakeout_detected = False
+
     for i in range(1, len(contractions)):
-        if contractions[i]["range_pct"] < contractions[i - 1]["range_pct"]:
-            valid_contractions.append(contractions[i])
+        curr = contractions[i]
+        prev = valid_contractions[-1]
+
+        # Shakeout: Current low is below previous low (undercut)
+        if curr["low_val"] < prev["low_val"]:
+            shakeout_detected = True
+
+        if curr["range_pct"] < prev["range_pct"]:
+            valid_contractions.append(curr)
         else:
+            is_monotonic = False
             # Allow one violation then break
             if len(valid_contractions) >= settings.min_contractions:
                 break
-            valid_contractions.append(contractions[i])
+            valid_contractions.append(curr)
 
     if len(valid_contractions) < settings.min_contractions:
         return {"found": False, "reason": "contractions not tightening"}
@@ -165,6 +176,14 @@ def detect_contractions(
     # Tightness ratio: last contraction range / first contraction range
     tightness = valid_contractions[-1]["range_pct"] / valid_contractions[0]["range_pct"] if valid_contractions[0]["range_pct"] > 0 else 1.0
 
+    # Volume Quietness: Last 3 days average vs 50-day average
+    recent_vol = volume.iloc[-3:].mean()
+    long_term_vol = volume.iloc[-50:].mean()
+    volume_quietness = recent_vol / long_term_vol if long_term_vol > 0 else 1.0
+
+    # Accumulation Signature: Up/Down Volume Ratio (50 days)
+    ud_ratio = up_down_volume_ratio(close, volume, period=50)
+
     return {
         "found": True,
         "contractions": valid_contractions,
@@ -175,6 +194,10 @@ def detect_contractions(
         "tightness_ratio": tightness,
         "volume_dry_up_pct": vol_dry_up,
         "base_start_idx": base_start,
+        "is_monotonic": is_monotonic,
+        "shakeout_detected": shakeout_detected,
+        "volume_quietness": volume_quietness,
+        "ud_ratio": ud_ratio,
     }
 
 

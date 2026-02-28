@@ -62,6 +62,32 @@ def average_volume(volume: pd.Series, period: int = 50) -> float:
     return volume.iloc[-period:].mean()
 
 
+def up_down_volume_ratio(close: pd.Series, volume: pd.Series, period: int = 50) -> float:
+    """Calculate the Up/Down Volume Ratio over the given period.
+    
+    Ratio = (Sum of volume on up days) / (Sum of volume on down days)
+    A ratio > 1.0 indicates accumulation.
+    """
+    if len(close) < period:
+        period = len(close)
+    if period <= 1:
+        return 1.0
+        
+    recent_close = close.iloc[-period:]
+    recent_vol = volume.iloc[-period:]
+    
+    # Calculate daily returns to classify up/down days
+    returns = recent_close.diff()
+    
+    up_vol = recent_vol[returns > 0].sum()
+    down_vol = recent_vol[returns < 0].sum()
+    
+    if down_vol == 0:
+        return float(up_vol) if up_vol > 0 else 1.0
+        
+    return up_vol / down_vol
+
+
 def volume_ratio(volume: pd.Series, short: int = 10, long: int = 50) -> float:
     """Ratio of short-term to long-term average volume."""
     if len(volume) < long:

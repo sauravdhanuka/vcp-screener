@@ -263,6 +263,21 @@ def screen_detail(symbol):
                       f"volume dry-up={vcp['volume_dry_up_pct']:.0f}%")
         console.print(f"Pivot Price: [bold cyan]₹{vcp['pivot_price']:,.2f}[/]")
         console.print(f"Base Depth: {vcp['base_depth_pct']:.1f}%, Duration: {vcp['base_duration_days']} days")
+        
+        # New AI Metrics
+        ai_metrics = []
+        if vcp.get("is_monotonic"):
+            ai_metrics.append("[green]Monotonic Tightening ✓[/]")
+        if vcp.get("shakeout_detected"):
+            ai_metrics.append("[green]Shakeout Detected ✓[/]")
+        
+        vol_quiet = vcp.get("volume_quietness", 1.0)
+        ud_ratio = vcp.get("ud_ratio", 1.0)
+        
+        ai_metrics.append(f"Vol Quietness: [{('green' if vol_quiet <= 0.5 else 'yellow')}]{vol_quiet:.2f}x[/]")
+        ai_metrics.append(f"U/D Ratio: [{('green' if ud_ratio >= 1.2 else 'white')}]{ud_ratio:.2f}[/]")
+        
+        console.print(" | ".join(ai_metrics))
 
         ctable = Table(title="Contractions")
         ctable.add_column("#")

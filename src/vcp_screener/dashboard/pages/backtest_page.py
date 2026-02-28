@@ -75,7 +75,7 @@ def _render_past_results():
                         {"date": e.date, "equity": e.equity, "drawdown_pct": e.drawdown_pct}
                         for e in eq_data
                     ])
-                    st.plotly_chart(fig)
+                    st.plotly_chart(fig, key=f"past_run_chart_{run.id}")
     finally:
         session.close()
 

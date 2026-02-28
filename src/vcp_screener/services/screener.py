@@ -139,6 +139,10 @@ def run_screening(save_results: bool = True) -> list[dict]:
                 "base_duration_days": vcp_result.get("base_duration_days", 0),
                 "trend_conditions": trend_result["conditions"],
                 "contractions": vcp_result.get("contractions", []),
+                "is_monotonic": vcp_result.get("is_monotonic"),
+                "shakeout_detected": vcp_result.get("shakeout_detected"),
+                "volume_quietness": vcp_result.get("volume_quietness"),
+                "ud_ratio": vcp_result.get("ud_ratio"),
             })
 
         # Step 5: Market regime
@@ -175,6 +179,10 @@ def run_screening(save_results: bool = True) -> list[dict]:
                     base_duration_days=c.get("base_duration_days"),
                     market_regime=c.get("market_regime", "UNKNOWN"),
                     details={
+                        "is_monotonic": c.get("is_monotonic"),
+                        "shakeout_detected": c.get("shakeout_detected"),
+                        "volume_quietness": c.get("volume_quietness"),
+                        "ud_ratio": c.get("ud_ratio"),
                         "contractions": [
                             {k: (str(v) if hasattr(v, 'isoformat') else v)
                              for k, v in ct.items()}
