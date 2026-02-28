@@ -12,3 +12,4 @@ plotly>=5.18
 schedule>=1.2
 scipy>=1.11
 requests>=2.31
+python-telegram-bot>=20.0

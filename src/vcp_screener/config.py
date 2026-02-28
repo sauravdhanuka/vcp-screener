@@ -65,6 +65,7 @@ class Settings(BaseSettings):
     trailing_stop_pct: float = 12.0          # Wide trail
 
     # Telegram Alerts
+
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
 
@@ -74,7 +75,7 @@ class Settings(BaseSettings):
     # Top N results
     top_n: int = 50
 
-    model_config = {"env_prefix": "VCP_"}
+    model_config = {"env_prefix": "VCP_", "env_file": ".env", "env_file_encoding": "utf-8"}
 
     def model_post_init(self, __context):
         # self.data_dir.mkdir(parents=True, exist_ok=True)
