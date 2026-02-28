@@ -164,22 +164,40 @@ def _save_batch_prices(data: pd.DataFrame, symbols: list[str]):
                 })
 
         if rows_to_insert:
-            # Insert in chunks to avoid SQLite variable limit
+            # Insert in chunks to avoid variable limits
             chunk_size = 500
             for start in range(0, len(rows_to_insert), chunk_size):
                 chunk = rows_to_insert[start:start + chunk_size]
-                stmt = sqlite_upsert(DailyPrice).values(chunk)
-                stmt = stmt.on_conflict_do_update(
-                    index_elements=["symbol", "date"],
-                    set_={
-                        "open": stmt.excluded.open,
-                        "high": stmt.excluded.high,
-                        "low": stmt.excluded.low,
-                        "close": stmt.excluded.close,
-                        "adj_close": stmt.excluded.adj_close,
-                        "volume": stmt.excluded.volume,
-                    },
-                )
+                
+                # Check which database engine we are using
+                if session.bind.dialect.name == 'postgresql':
+                    from sqlalchemy.dialects.postgresql import insert as pg_upsert
+                    stmt = pg_upsert(DailyPrice).values(chunk)
+                    stmt = stmt.on_conflict_do_update(
+                        index_elements=["symbol", "date"],
+                        set_={
+                            "open": stmt.excluded.open,
+                            "high": stmt.excluded.high,
+                            "low": stmt.excluded.low,
+                            "close": stmt.excluded.close,
+                            "adj_close": stmt.excluded.adj_close,
+                            "volume": stmt.excluded.volume,
+                        },
+                    )
+                else:
+                    from sqlalchemy.dialects.sqlite import insert as sqlite_upsert
+                    stmt = sqlite_upsert(DailyPrice).values(chunk)
+                    stmt = stmt.on_conflict_do_update(
+                        index_elements=["symbol", "date"],
+                        set_={
+                            "open": stmt.excluded.open,
+                            "high": stmt.excluded.high,
+                            "low": stmt.excluded.low,
+                            "close": stmt.excluded.close,
+                            "adj_close": stmt.excluded.adj_close,
+                            "volume": stmt.excluded.volume,
+                        },
+                    )
                 session.execute(stmt)
             session.commit()
             logger.info(f"Saved {len(rows_to_insert)} price rows")
