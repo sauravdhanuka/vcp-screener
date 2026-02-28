@@ -15,7 +15,7 @@ def render():
     init_db()
 
     # Action buttons
-    col_a, col_b = st.columns(2)
+    col_a, col_b, col_c = st.columns(3)
     with col_a:
         if st.button("Run Screening Now", type="primary"):
             with st.spinner("Running VCP screening pipeline..."):
@@ -23,14 +23,24 @@ def render():
             st.success(f"Screening complete! Found {len(results)} candidates.")
             st.rerun()
     with col_b:
-        if st.button("Download Data (30d)"):
+        if st.button("Sync Latest Data (10d)"):
             with st.spinner("Fetching NSE stock list..."):
                 stocks = fetch_nse_stock_list()
                 save_stock_list(stocks)
                 symbols = [s["symbol"] for s in stocks]
-            with st.spinner(f"Downloading 30d prices for {len(symbols)} stocks..."):
-                download_ohlcv(symbols, period="30d")
-            st.success("Data downloaded! Click 'Run Screening Now' next.")
+            with st.spinner(f"Downloading latest prices for {len(symbols)} stocks..."):
+                download_ohlcv(symbols, period="10d")
+            st.success("Data synced! Click 'Run Screening Now'.")
+            st.rerun()
+    with col_c:
+        if st.button("Full History Download (5y)"):
+            with st.spinner("Fetching NSE stock list..."):
+                stocks = fetch_nse_stock_list()
+                save_stock_list(stocks)
+                symbols = [s["symbol"] for s in stocks]
+            with st.spinner(f"Downloading 5 YEARS of data for {len(symbols)} stocks... This WILL take ~30-60 minutes."):
+                download_ohlcv(symbols, period="5y")
+            st.success("Full data download complete! Click 'Run Screening Now'.")
             st.rerun()
 
     session = get_session()

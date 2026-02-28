@@ -123,19 +123,22 @@ class BacktestEngine:
         return equity
 
     def _check_stops(self, all_data: dict, current_date: pd.Timestamp):
-        """Check and execute stops for all open positions."""
+        """Check and execute stops for all open positions, including advanced sell signals."""
         to_close = []
         for pos in self.positions:
             sym = pos["symbol"]
             if sym not in all_data:
                 continue
             df = all_data[sym]
-            df_today = df[df.index == current_date]
-            if df_today.empty:
+            df_slice = df[df.index <= current_date]
+            if df_slice.empty:
                 continue
 
-            current_price = float(df_today["close"].iloc[0])
-            today_low = float(df_today["low"].iloc[0])
+            current_price = float(df_slice["close"].iloc[-1])
+            today_low = float(df_slice["low"].iloc[-1])
+            today_high = float(df_slice["high"].iloc[-1])
+            today_open = float(df_slice["open"].iloc[-1])
+            today_volume = float(df_slice["volume"].iloc[-1])
 
             # Update highest price
             if current_price > pos["highest_price"]:
@@ -154,13 +157,39 @@ class BacktestEngine:
 
             effective_stop = max(pos["stop_loss"], pos["trailing_stop"] or 0)
 
+            # 1. Hard Stops & Trailing Stops
             if today_low <= effective_stop:
                 exit_price = effective_stop
                 reason = "trailing_stop" if pos["trailing_stop"] and effective_stop == pos["trailing_stop"] else "stop_loss"
                 to_close.append((pos, exit_price, reason, current_date))
+                continue
+
+            # Advanced Sell Signals
+            if len(df_slice) >= 2:
+                prev_close = float(df_slice["close"].iloc[-2])
+                daily_change_pct = (current_price / prev_close - 1) * 100
+                avg_vol = float(df_slice["volume"].iloc[-50:].mean()) if len(df_slice) >= 50 else float(df_slice["volume"].mean())
+
+                # 2. High Volume Decline (Climax Top / Institutional Distribution)
+                if daily_change_pct <= -4 and today_volume > avg_vol * 1.5:
+                    to_close.append((pos, current_price, "high_vol_decline", current_date))
+                    continue
+
+                # 3. Exhaustion Gap
+                if (today_open > prev_close * 1.02 and
+                        (today_high - current_price) > (current_price - today_low) * 2):
+                    to_close.append((pos, current_price, "exhaustion_gap", current_date))
+                    continue
+
+            # 4. Protect 20%+ Gain (Never let it turn into a loss)
+            if (pos["highest_price"] / pos["entry_price"] - 1) >= 0.20:
+                if current_price <= pos["entry_price"]:
+                    to_close.append((pos, pos["entry_price"], "protect_20pct_gain", current_date))
+                    continue
 
         for pos, exit_price, reason, dt in to_close:
-            self._close_position(pos, exit_price, reason, dt)
+            if pos in self.positions:  # Check if not already closed
+                self._close_position(pos, exit_price, reason, dt)
 
     def _close_position(self, pos: dict, exit_price: float, reason: str, exit_date: pd.Timestamp):
         pnl = (exit_price - pos["entry_price"]) * pos["shares"]
@@ -191,6 +220,15 @@ class BacktestEngine:
         """
         if len(self.positions) >= self.max_positions:
             return
+
+        # Market Regime Filter: Prevent entries in BEARISH markets
+        if hasattr(self, "nifty_data") and not self.nifty_data.empty:
+            from vcp_screener.services.market_regime import detect_market_regime
+            nifty_slice = self.nifty_data[self.nifty_data.index <= current_date]
+            if len(nifty_slice) >= 200:
+                regime_info = detect_market_regime(nifty_slice)
+                if regime_info["regime"] == "BEARISH":
+                    return
 
         held_symbols = {p["symbol"] for p in self.positions}
         triggered = []
@@ -276,6 +314,9 @@ class BacktestEngine:
             logger.info("Loading all price data...")
             all_data = _load_all_prices(session)
             logger.info(f"Loaded data for {len(all_data)} stocks")
+
+            from vcp_screener.services.market_regime import get_nifty_data
+            self.nifty_data = get_nifty_data(period="5y")
 
             all_dates = set()
             for df in all_data.values():
