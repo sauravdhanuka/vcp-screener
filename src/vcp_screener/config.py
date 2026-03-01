@@ -79,6 +79,7 @@ class Settings(BaseSettings):
 
     def model_post_init(self, __context):
         # self.data_dir.mkdir(parents=True, exist_ok=True)
+        import os
         import tempfile
         try:
             self.data_dir.mkdir(parents=True,exist_ok = True)
@@ -89,6 +90,15 @@ class Settings(BaseSettings):
             self.data_dir = Path(tempfile.gettempdir())
             self.data_dir.mkdir(parents=True,exist_ok=True)
             self.db_path = self.data_dir / "vcp_screener.db"
+            
+        # Check standard DATABASE_URL if VCP_DB_URL is not provided
+        if not self.db_url:
+            self.db_url = os.environ.get("DATABASE_URL", "")
+            
+        # SQLAlchemy requires postgresql:// instead of postgres://
+        if self.db_url and self.db_url.startswith("postgres://"):
+            self.db_url = self.db_url.replace("postgres://", "postgresql://", 1)
+            
         if not self.db_url:
             self.db_url = f"sqlite:///{self.db_path}"
 
