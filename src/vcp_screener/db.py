@@ -5,7 +5,7 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from vcp_screener.config import settings
 
-engine = create_engine(settings.db_url, echo=False)
+engine = create_engine(settings.db_url, echo=False, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine)
 
 
