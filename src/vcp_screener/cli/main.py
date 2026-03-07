@@ -36,7 +36,7 @@ def data():
 
 @data.command("download")
 def data_download():
-    """Full download: NSE stock list + 2 years OHLCV data."""
+    """Full download: NSE stock list + historical OHLCV data."""
     from vcp_screener.services.data_fetcher import full_download
     console.print("[bold green]Starting full data download...[/]")
     console.print("This will download ~2000+ NSE stocks. May take 30-60 minutes.")

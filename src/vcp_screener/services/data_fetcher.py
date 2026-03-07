@@ -7,8 +7,6 @@ from datetime import datetime
 import pandas as pd
 import requests
 import yfinance as yf
-from sqlalchemy.dialects.sqlite import insert as sqlite_upsert
-
 from vcp_screener.config import settings
 from vcp_screener.db import get_session, init_db
 from vcp_screener.models.stock import Stock
@@ -86,8 +84,12 @@ def get_active_symbols() -> list[str]:
         session.close()
 
 
-def download_ohlcv(symbols: list[str], period: str = None):
-    """Download OHLCV data for given symbols in batches using yfinance."""
+def download_ohlcv(symbols: list[str], period: str = None, progress_callback=None):
+    """Download OHLCV data for given symbols in batches using yfinance.
+
+    Args:
+        progress_callback: Optional callable(batch_num, total_batches) for progress updates.
+    """
     if period is None:
         period = settings.history_period
 
@@ -122,6 +124,9 @@ def download_ohlcv(symbols: list[str], period: str = None):
             continue
 
         _save_batch_prices(data, batch)
+
+        if progress_callback:
+            progress_callback(batch_num, total_batches)
 
         if i + batch_size < total:
             time.sleep(settings.batch_delay_seconds)
@@ -218,11 +223,11 @@ def update_prices(days_back: int = 10):
     download_ohlcv(symbols, period=f"{days_back}d")
 
 
-def full_download():
+def full_download(period: str = None):
     """Full pipeline: fetch stock list + download all OHLCV data."""
     stocks = fetch_nse_stock_list()
     save_stock_list(stocks)
     symbols = [s["symbol"] for s in stocks]
     logger.info(f"Starting full OHLCV download for {len(symbols)} stocks...")
-    download_ohlcv(symbols)
+    download_ohlcv(symbols, period=period)
     logger.info("Full download complete.")

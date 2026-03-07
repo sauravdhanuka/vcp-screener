@@ -2,19 +2,59 @@
 
 import streamlit as st
 
-from vcp_screener.db import init_db
+from vcp_screener.db import init_db, get_session
+from vcp_screener.models.screening_result import ScreeningResult
 from vcp_screener.services.screener import get_stock_detail
 from vcp_screener.dashboard.components.charts import candlestick_chart
+
+
+def _get_recent_symbols() -> list[str]:
+    """Get symbols from the most recent screening run."""
+    from sqlalchemy import func
+    session = get_session()
+    try:
+        latest_date = session.query(func.max(ScreeningResult.run_date)).scalar()
+        if not latest_date:
+            return []
+        results = (
+            session.query(ScreeningResult.symbol)
+            .filter(ScreeningResult.run_date == latest_date)
+            .order_by(ScreeningResult.rank)
+            .all()
+        )
+        return [r[0] for r in results]
+    finally:
+        session.close()
 
 
 def render():
     st.header("Stock Detail")
     init_db()
 
-    symbol = st.text_input("Enter NSE Symbol", value="").upper().strip()
+    # Pre-populate from session state (e.g., when user clicks a symbol elsewhere)
+    default_symbol = st.session_state.get("detail_symbol", "")
+
+    recent_symbols = _get_recent_symbols()
+
+    if recent_symbols:
+        options = [""] + recent_symbols
+        default_idx = 0
+        if default_symbol and default_symbol in recent_symbols:
+            default_idx = options.index(default_symbol)
+        symbol = st.selectbox(
+            "Select a recently screened stock",
+            options,
+            index=default_idx,
+            format_func=lambda x: "Type or select..." if x == "" else x,
+        )
+    else:
+        symbol = st.text_input("Enter NSE Symbol", value=default_symbol).upper().strip()
+
     if not symbol:
-        st.info("Enter a stock symbol to view detailed analysis.")
+        st.info("Select or enter a stock symbol to view detailed analysis.")
         return
+
+    symbol = symbol.upper().strip()
 
     with st.spinner(f"Analyzing {symbol}..."):
         detail = get_stock_detail(symbol)

@@ -5,7 +5,9 @@ import streamlit as st
 from vcp_screener.db import init_db, get_session
 from vcp_screener.models.screening_result import ScreeningResult
 from vcp_screener.services.screener import get_buy_signals, run_screening
-from vcp_screener.services.data_fetcher import fetch_nse_stock_list, save_stock_list, download_ohlcv
+from vcp_screener.services.data_fetcher import (
+    fetch_nse_stock_list, save_stock_list, download_ohlcv, get_active_symbols,
+)
 
 
 def _has_screening_data() -> bool:
@@ -17,18 +19,35 @@ def _has_screening_data() -> bool:
         session.close()
 
 
-def _run_download_and_screen():
-    """Download data and run screening in one go for fresh deployments."""
-    with st.spinner("Step 1/3: Fetching NSE stock list..."):
-        stocks = fetch_nse_stock_list()
-        save_stock_list(stocks)
-        symbols = [s["symbol"] for s in stocks]
+def _get_last_screen_date():
+    """Get the most recent screening date."""
+    from sqlalchemy import func
+    session = get_session()
+    try:
+        return session.query(func.max(ScreeningResult.run_date)).scalar()
+    finally:
+        session.close()
 
-    with st.spinner(f"Step 2/3: Downloading price data for {len(symbols)} stocks (30 days)..."):
-        download_ohlcv(symbols, period="30d")
 
-    with st.spinner("Step 3/3: Running VCP screening..."):
-        run_screening()
+def _update_and_screen(period: str = "10d"):
+    """Shared helper: download data + run screening with progress bar."""
+    progress = st.progress(0, text="Fetching NSE stock list...")
+    stocks = fetch_nse_stock_list()
+    save_stock_list(stocks)
+    symbols = [s["symbol"] for s in stocks]
+    progress.progress(5, text=f"Downloading {period} data for {len(symbols)} stocks...")
+
+    total_batches = (len(symbols) + 49) // 50  # batch_size=50
+
+    def on_progress(batch_num, total):
+        pct = 5 + int(85 * batch_num / total)
+        progress.progress(pct, text=f"Downloading batch {batch_num}/{total}...")
+
+    download_ohlcv(symbols, period=period, progress_callback=on_progress)
+
+    progress.progress(92, text="Running VCP screening...")
+    run_screening()
+    progress.progress(100, text="Done!")
 
 
 def _render_signal_card(s: dict):
@@ -77,98 +96,64 @@ def render():
     st.header("Buy Signals")
     init_db()
 
+    # Show data freshness
+    last_screen = _get_last_screen_date()
+    if last_screen:
+        st.caption(f"Last screened: {last_screen}")
+
     # Check for screening data
     if not _has_screening_data():
         st.warning("No screening data found. Download data and run screening first.")
-        
-        col_a, col_b = st.columns(2)
-        with col_a:
-            if st.button("Sync Latest Data (10d)", type="primary"):
+
+        if st.button("Update Data & Screen", type="primary"):
+            try:
+                _update_and_screen("10d")
+                st.success("Done! Screening complete.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error: {e}")
+
+        with st.expander("Full History Download (3y) — for first-time setup"):
+            st.info(
+                "Use this only if you have no data at all. "
+                "The screener needs 200+ days of history. This will take ~30-60 minutes."
+            )
+            if st.button("Download Full History"):
                 try:
-                    with st.spinner("Step 1/3: Fetching NSE stock list..."):
-                        stocks = fetch_nse_stock_list()
-                        save_stock_list(stocks)
-                        symbols = [s["symbol"] for s in stocks]
-                    with st.spinner(f"Step 2/3: Downloading price data for {len(symbols)} stocks (10 days)..."):
-                        download_ohlcv(symbols, period="10d")
-                    with st.spinner("Step 3/3: Running VCP screening..."):
-                        run_screening()
-                    st.success("Done! Screening complete.")
+                    _update_and_screen("3y")
+                    st.success("Full setup complete!")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error: {e}")
-        with col_b:
-            if st.button("Initial Full Setup (5y)"):
-                try:
-                    with st.spinner("Step 1/3: Fetching NSE stock list..."):
-                        stocks = fetch_nse_stock_list()
-                        save_stock_list(stocks)
-                        symbols = [s["symbol"] for s in stocks]
-                    with st.spinner(f"Step 2/3: Downloading 5 years of data for {len(symbols)} stocks (This will take ~30-60 mins)..."):
-                        download_ohlcv(symbols, period="5y")
-                    with st.spinner("Step 3/3: Running VCP screening..."):
-                        run_screening()
-                    st.success("Done! Full setup complete.")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error: {e}")
-                    
-        st.info(
-            "**First time on Streamlit Cloud?** If you have no data at all, the 'Sync Latest Data' will be fast "
-            "but might not find candidates because the screener needs 200 days of history. Use 'Initial Full Setup' "
-            "to get the full database."
-        )
         return
 
-    # Main action button
-    if st.button("Check Buy Signals", type="primary"):
-        with st.spinner("Analyzing candidates for buy signals..."):
+    # Primary action button
+    if st.button("Update Data & Screen", type="primary"):
+        try:
+            _update_and_screen("10d")
+            with st.spinner("Analyzing buy signals..."):
+                signals = get_buy_signals()
+            st.session_state["signals"] = signals
+            st.rerun()
+        except Exception as e:
+            st.error(f"Error: {e}")
+
+    with st.expander("Full History Download (3y)"):
+        if st.button("Download Full History", key="full_hist_main"):
+            try:
+                _update_and_screen("3y")
+                st.success("Full data refreshed!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error: {e}")
+
+    # Auto-load last signals on page load
+    if "signals" not in st.session_state:
+        with st.spinner("Loading latest buy signals..."):
             signals = get_buy_signals()
         st.session_state["signals"] = signals
 
-    # Also offer re-screening
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("Re-run Screening"):
-            with st.spinner("Running VCP screening..."):
-                run_screening()
-            st.success("Screening complete! Click 'Check Buy Signals' to see results.")
-            st.rerun()
-    with col2:
-        if st.button("Sync Latest Data (10d)"):
-            try:
-                with st.spinner("Step 1/3: Fetching NSE stock list..."):
-                    stocks = fetch_nse_stock_list()
-                    save_stock_list(stocks)
-                    symbols = [s["symbol"] for s in stocks]
-                with st.spinner(f"Step 2/3: Downloading price data for {len(symbols)} stocks (10 days)..."):
-                    download_ohlcv(symbols, period="10d")
-                with st.spinner("Step 3/3: Running VCP screening..."):
-                    run_screening()
-                st.success("Data refreshed and screening complete!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error: {e}")
-    with col3:
-        if st.button("Full History Download (5y)"):
-            try:
-                with st.spinner("Step 1/3: Fetching NSE stock list..."):
-                    stocks = fetch_nse_stock_list()
-                    save_stock_list(stocks)
-                    symbols = [s["symbol"] for s in stocks]
-                with st.spinner(f"Step 2/3: Downloading 5 years of data for {len(symbols)} stocks (This will take ~30-60 mins)..."):
-                    download_ohlcv(symbols, period="5y")
-                with st.spinner("Step 3/3: Running VCP screening..."):
-                    run_screening()
-                st.success("Full data refreshed and screening complete!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error: {e}")
-
     signals = st.session_state.get("signals")
-    if signals is None:
-        st.info("Click **Check Buy Signals** to analyze the latest screening results.")
-        return
 
     if not signals:
         st.info("No signals found. The screener may not have found actionable candidates.")
