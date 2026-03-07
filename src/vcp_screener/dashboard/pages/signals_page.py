@@ -6,7 +6,8 @@ from vcp_screener.db import init_db, get_session
 from vcp_screener.models.screening_result import ScreeningResult
 from vcp_screener.services.screener import get_buy_signals, run_screening
 from vcp_screener.services.data_fetcher import (
-    fetch_nse_stock_list, save_stock_list, download_ohlcv, get_active_symbols,
+    fetch_nse_stock_list, save_stock_list, download_ohlcv,
+    get_active_symbols, update_prices,
 )
 
 
@@ -30,20 +31,28 @@ def _get_last_screen_date():
 
 
 def _update_and_screen(period: str = "10d"):
-    """Shared helper: download data + run screening with progress bar."""
-    progress = st.progress(0, text="Fetching NSE stock list...")
-    stocks = fetch_nse_stock_list()
-    save_stock_list(stocks)
-    symbols = [s["symbol"] for s in stocks]
-    progress.progress(5, text=f"Downloading {period} data for {len(symbols)} stocks...")
+    """Shared helper: update prices from DB stock list + run screening with progress bar.
 
-    total_batches = (len(symbols) + 49) // 50  # batch_size=50
+    Skips NSE website fetch (blocked on cloud) — uses stocks already in DB.
+    Uses larger batches (100) and shorter delays (0.5s) for speed.
+    """
+    symbols = get_active_symbols()
+    if not symbols:
+        # First time: must fetch from NSE (only works locally)
+        progress = st.progress(0, text="Fetching NSE stock list (first-time setup)...")
+        stocks = fetch_nse_stock_list()
+        save_stock_list(stocks)
+        symbols = [s["symbol"] for s in stocks]
+        progress.progress(5, text=f"Downloading {period} data for {len(symbols)} stocks...")
+    else:
+        progress = st.progress(5, text=f"Updating {period} data for {len(symbols)} stocks...")
 
     def on_progress(batch_num, total):
         pct = 5 + int(85 * batch_num / total)
         progress.progress(pct, text=f"Downloading batch {batch_num}/{total}...")
 
-    download_ohlcv(symbols, period=period, progress_callback=on_progress)
+    download_ohlcv(symbols, period=period, progress_callback=on_progress,
+                   batch_size=100, batch_delay=0.5)
 
     progress.progress(92, text="Running VCP screening...")
     run_screening()

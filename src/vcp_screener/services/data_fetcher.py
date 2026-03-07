@@ -84,17 +84,21 @@ def get_active_symbols() -> list[str]:
         session.close()
 
 
-def download_ohlcv(symbols: list[str], period: str = None, progress_callback=None):
+def download_ohlcv(symbols: list[str], period: str = None, progress_callback=None,
+                    batch_size: int = None, batch_delay: float = None):
     """Download OHLCV data for given symbols in batches using yfinance.
 
     Args:
         progress_callback: Optional callable(batch_num, total_batches) for progress updates.
+        batch_size: Override default batch size (default from settings).
+        batch_delay: Override delay between batches in seconds (default from settings).
     """
     if period is None:
         period = settings.history_period
 
     total = len(symbols)
-    batch_size = settings.batch_size
+    batch_size = batch_size or settings.batch_size
+    delay = batch_delay if batch_delay is not None else settings.batch_delay_seconds
 
     for i in range(0, total, batch_size):
         batch = symbols[i:i + batch_size]
@@ -129,7 +133,7 @@ def download_ohlcv(symbols: list[str], period: str = None, progress_callback=Non
             progress_callback(batch_num, total_batches)
 
         if i + batch_size < total:
-            time.sleep(settings.batch_delay_seconds)
+            time.sleep(delay)
 
 
 def _save_batch_prices(data: pd.DataFrame, symbols: list[str]):
@@ -213,14 +217,23 @@ def _save_batch_prices(data: pd.DataFrame, symbols: list[str]):
         session.close()
 
 
-def update_prices(days_back: int = 10):
-    """Incremental update: fetch recent data for all active symbols."""
+def update_prices(days_back: int = 10, progress_callback=None, batch_size: int = None):
+    """Incremental update: fetch recent data for all active symbols.
+
+    Uses larger batches and shorter delays for speed since we're only fetching a few days.
+    """
     symbols = get_active_symbols()
     if not symbols:
         logger.warning("No active symbols found. Run full download first.")
         return
     logger.info(f"Updating prices for {len(symbols)} symbols ({days_back}d)...")
-    download_ohlcv(symbols, period=f"{days_back}d")
+    download_ohlcv(
+        symbols,
+        period=f"{days_back}d",
+        progress_callback=progress_callback,
+        batch_size=batch_size or 100,
+        batch_delay=0.5,
+    )
 
 
 def full_download(period: str = None):
