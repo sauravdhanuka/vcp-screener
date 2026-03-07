@@ -6,7 +6,6 @@ import pandas as pd
 from vcp_screener.db import get_session, init_db
 from vcp_screener.models.screening_result import ScreeningResult
 from vcp_screener.services.screener import run_screening
-from vcp_screener.services.data_fetcher import fetch_nse_stock_list, save_stock_list, download_ohlcv
 
 
 def render():
@@ -14,41 +13,18 @@ def render():
 
     init_db()
 
-    # Action buttons
-    col_a, col_b, col_c = st.columns(3)
-    with col_a:
-        if st.button("Run Screening Now", type="primary"):
-            with st.spinner("Running VCP screening pipeline..."):
-                results = run_screening()
-            st.success(f"Screening complete! Found {len(results)} candidates.")
-            st.rerun()
-    with col_b:
-        if st.button("Sync Latest Data (10d)"):
-            with st.spinner("Fetching NSE stock list..."):
-                stocks = fetch_nse_stock_list()
-                save_stock_list(stocks)
-                symbols = [s["symbol"] for s in stocks]
-            with st.spinner(f"Downloading latest prices for {len(symbols)} stocks..."):
-                download_ohlcv(symbols, period="10d")
-            st.success("Data synced! Click 'Run Screening Now'.")
-            st.rerun()
-    with col_c:
-        if st.button("Full History Download (5y)"):
-            with st.spinner("Fetching NSE stock list..."):
-                stocks = fetch_nse_stock_list()
-                save_stock_list(stocks)
-                symbols = [s["symbol"] for s in stocks]
-            with st.spinner(f"Downloading 5 YEARS of data for {len(symbols)} stocks... This WILL take ~30-60 minutes."):
-                download_ohlcv(symbols, period="5y")
-            st.success("Full data download complete! Click 'Run Screening Now'.")
-            st.rerun()
+    if st.button("Run Screening Now", type="primary"):
+        with st.spinner("Running VCP screening pipeline..."):
+            results = run_screening()
+        st.success(f"Screening complete! Found {len(results)} candidates.")
+        st.rerun()
 
     session = get_session()
     try:
         dates = [r[0] for r in session.query(ScreeningResult.run_date).distinct().order_by(ScreeningResult.run_date.desc()).all()]
 
         if not dates:
-            st.warning("No screening results found. Click **Download Data** then **Run Screening Now**.")
+            st.warning("No screening results found. Go to **Buy Signals** to download data and run screening.")
             return
 
         selected_date = st.selectbox("Screening Date", dates)
@@ -112,6 +88,15 @@ def render():
                 "VCP Score": st.column_config.NumberColumn(format="%.1f"),
                 "RS %ile": st.column_config.NumberColumn(format="%.0f"),
             },
+        )
+
+        # CSV export
+        csv = df.to_csv(index=False)
+        st.download_button(
+            "Download CSV",
+            csv,
+            file_name=f"vcp_screener_{selected_date}.csv",
+            mime="text/csv",
         )
     finally:
         session.close()

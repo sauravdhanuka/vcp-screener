@@ -5,7 +5,19 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from vcp_screener.config import settings
 
-engine = create_engine(settings.db_url, echo=False, pool_pre_ping=True)
+if settings.db_url.startswith("postgresql"):
+    engine = create_engine(
+        settings.db_url,
+        echo=False,
+        pool_pre_ping=True,
+        pool_size=5,
+        max_overflow=10,
+        pool_recycle=300,
+        connect_args={"sslmode": "require"},
+    )
+else:
+    engine = create_engine(settings.db_url, echo=False, pool_pre_ping=True)
+
 SessionLocal = sessionmaker(bind=engine)
 
 
