@@ -9,6 +9,8 @@ logging.basicConfig(level=logging.WARNING)  # Suppress verbose logs
 from vcp_screener.services.backtester import run_backtest
 
 periods = [
+    ("2021 H1",               date(2021, 1, 1),  date(2021, 6, 30)),
+    ("2021 H2 (Bull)",        date(2021, 7, 1),  date(2021, 12, 31)),
     ("2022 H1 (Bear)",        date(2022, 1, 1),  date(2022, 6, 30)),
     ("2022 H2 (Recovery)",    date(2022, 7, 1),  date(2022, 12, 31)),
     ("2023 H1",               date(2023, 1, 1),  date(2023, 6, 30)),
@@ -17,10 +19,12 @@ periods = [
     ("2024 H2 (Correction)",  date(2024, 7, 1),  date(2024, 12, 31)),
     ("2025 H1",               date(2025, 1, 1),  date(2025, 6, 30)),
     ("2025 H2",               date(2025, 7, 1),  date(2025, 12, 31)),
+    ("Full 2021",             date(2021, 1, 1),  date(2021, 12, 31)),
+    ("Full 2022",             date(2022, 1, 1),  date(2022, 12, 31)),
     ("Full 2023",             date(2023, 1, 1),  date(2023, 12, 31)),
     ("Full 2024",             date(2024, 1, 1),  date(2024, 12, 31)),
     ("Full 2025",             date(2025, 1, 1),  date(2025, 12, 31)),
-    ("Full 3Y (2023-2025)",   date(2023, 1, 1),  date(2025, 12, 31)),
+    ("Full 5Y (2021-2025)",   date(2021, 1, 1),  date(2025, 12, 31)),
 ]
 
 header = f"{'Period':<25} {'Return':>8} {'CAGR':>7} {'Sharpe':>7} {'MaxDD':>7} {'Trades':>7} {'WinR':>7} {'PF':>7} {'AvgG':>7} {'AvgL':>7} {'HoldD':>7}"

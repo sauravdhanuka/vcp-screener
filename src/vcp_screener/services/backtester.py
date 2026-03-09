@@ -90,6 +90,7 @@ def _screen_on_date(all_data: dict[str, pd.DataFrame], as_of: pd.Timestamp) -> l
             "vcp_score": sc,
             "rs_percentile": pct,
             "pivot_price": vcp.get("pivot_price"),
+            "base_low": vcp.get("base_low"),
             "avg_volume": avg_vol,
         })
 
@@ -100,7 +101,8 @@ def _screen_on_date(all_data: dict[str, pd.DataFrame], as_of: pd.Timestamp) -> l
 class BacktestEngine:
     """Event-driven backtesting engine with breakout confirmation."""
 
-    def __init__(self, initial_capital: float = None, max_positions: int = None):
+    def __init__(self, initial_capital: float = None, max_positions: int = None,
+                 eq_ma_days: int = 0, dd_max_positions: int = 3, dd_risk_mult: float = 1.0):
         self.initial_capital = initial_capital or settings.account_size
         self.max_positions = max_positions or settings.max_positions
         self.cash = self.initial_capital
@@ -110,6 +112,10 @@ class BacktestEngine:
         self.peak_equity = self.initial_capital
         # Watchlist: candidates waiting for breakout confirmation
         self.watchlist: list[dict] = []
+        # Equity Curve MA parameters (0 = disabled)
+        self.eq_ma_days = eq_ma_days
+        self.dd_max_positions = dd_max_positions
+        self.dd_risk_mult = dd_risk_mult
 
     def _current_equity(self, all_data: dict, as_of: pd.Timestamp) -> float:
         equity = self.cash
@@ -122,10 +128,39 @@ class BacktestEngine:
                     equity += df_slice["close"].iloc[-1] * pos["shares"]
         return equity
 
+    def _precompute_breadth(self, all_data: dict) -> pd.DataFrame:
+        """Precompute market breadth (% of stocks above 50-day SMA) and its trend.
+
+        Uses our own stock universe for reliable regime detection
+        without depending on external Nifty 50 data downloads.
+        Returns DataFrame with 'breadth' and 'breadth_sma' columns.
+        """
+        above_sma = {}
+        for sym, df in all_data.items():
+            if len(df) >= 50:
+                sma50 = df["close"].rolling(50, min_periods=50).mean()
+                above_sma[sym] = df["close"] > sma50
+
+        if not above_sma:
+            return pd.DataFrame()
+
+        df_above = pd.concat(above_sma, axis=1)
+        raw_breadth = df_above.mean(axis=1) * 100
+        smoothed = raw_breadth.rolling(10, min_periods=1).mean()
+        breadth_sma = smoothed.rolling(10, min_periods=1).mean()
+
+        return pd.DataFrame({
+            "breadth": smoothed,
+            "breadth_sma": breadth_sma,
+        })
+
     def _check_stops(self, all_data: dict, current_date: pd.Timestamp):
-        """Check and execute stops for all open positions, including advanced sell signals."""
+        """Check and execute stops for VCP positions, including advanced sell signals."""
         to_close = []
         for pos in self.positions:
+            # Skip mean reversion positions (handled by _check_mr_exits)
+            if pos.get("strategy") == "mean_reversion":
+                continue
             sym = pos["symbol"]
             if sym not in all_data:
                 continue
@@ -187,6 +222,12 @@ class BacktestEngine:
                     to_close.append((pos, pos["entry_price"], "protect_20pct_gain", current_date))
                     continue
 
+            # 5. Failed Breakout: price falls 5% below pivot after entry
+            pivot = pos.get("pivot_price")
+            if pivot and current_price < pivot * 0.97:
+                to_close.append((pos, current_price, "failed_breakout", current_date))
+                continue
+
         for pos, exit_price, reason, dt in to_close:
             if pos in self.positions:  # Check if not already closed
                 self._close_position(pos, exit_price, reason, dt)
@@ -215,20 +256,30 @@ class BacktestEngine:
         """Check watchlist for breakout confirmations.
 
         A breakout is confirmed when:
-        1. Price closes above the pivot price
-        2. Volume is >= 1.5x the 50-day average
+        1. Price closes >= 1% above the pivot price (minimum gap)
+        2. Volume is >= 1.3x the 50-day average
         """
-        if len(self.positions) >= self.max_positions:
+        # Market Regime Filter: Prevent VCP entries in BEARISH markets
+        regime = self._get_current_regime(current_date)
+        if regime == "BEARISH":
             return
 
-        # Market Regime Filter: Prevent entries in BEARISH markets
-        if hasattr(self, "nifty_data") and not self.nifty_data.empty:
-            from vcp_screener.services.market_regime import detect_market_regime
-            nifty_slice = self.nifty_data[self.nifty_data.index <= current_date]
-            if len(nifty_slice) >= 200:
-                regime_info = detect_market_regime(nifty_slice)
-                if regime_info["regime"] == "BEARISH":
-                    return
+        # Equity Curve MA: reduce exposure during drawdowns
+        effective_max = self.max_positions
+        risk_mult = 1.0
+        if self.eq_ma_days > 0 and len(self.equity_curve) >= self.eq_ma_days:
+            recent_eq = [e["equity"] for e in self.equity_curve[-self.eq_ma_days:]]
+            equity_ma = sum(recent_eq) / len(recent_eq)
+            current_eq = self._current_equity(all_data, current_date)
+            if current_eq < equity_ma:
+                effective_max = self.dd_max_positions
+                risk_mult = self.dd_risk_mult
+
+        if len(self.positions) >= effective_max:
+            return
+
+        # Compounding: use current total equity for position sizing
+        current_equity = self._current_equity(all_data, current_date)
 
         held_symbols = {p["symbol"] for p in self.positions}
         triggered = []
@@ -254,24 +305,33 @@ class BacktestEngine:
             # Breakout confirmation: close above pivot + volume surge
             if today_close > pivot and today_volume >= avg_vol * settings.breakout_volume_mult:
                 triggered.append((candidate, today_close))
-                if len(self.positions) + len(triggered) >= self.max_positions:
+                if len(self.positions) + len(triggered) >= effective_max:
                     break
 
         # Enter confirmed breakouts (sorted by VCP score)
         triggered.sort(key=lambda x: -x[0]["vcp_score"])
         for candidate, entry_price in triggered:
-            if len(self.positions) >= self.max_positions:
+            if len(self.positions) >= effective_max:
                 break
-            self._enter_position_at_price(candidate, entry_price, current_date)
+            self._enter_position_at_price(
+                candidate, entry_price, current_date,
+                current_equity=current_equity, risk_mult=risk_mult,
+            )
             # Remove from watchlist
             if candidate in self.watchlist:
                 self.watchlist.remove(candidate)
 
-    def _enter_position_at_price(self, candidate: dict, entry_price: float, entry_date: pd.Timestamp):
+    def _enter_position_at_price(
+        self, candidate: dict, entry_price: float, entry_date: pd.Timestamp,
+        current_equity: float = None, risk_mult: float = 1.0,
+    ):
         """Enter a position at a confirmed breakout price."""
         stop_price = entry_price * (1 - settings.default_stop_loss_pct / 100)
 
-        risk_amount = self.cash * (settings.risk_per_trade_pct / 100)
+        # Compounding: use current equity for position sizing
+        sizing_capital = current_equity or self.initial_capital
+
+        risk_amount = sizing_capital * (settings.risk_per_trade_pct / 100) * risk_mult
         risk_per_share = entry_price - stop_price
         if risk_per_share <= 0:
             return
@@ -295,6 +355,10 @@ class BacktestEngine:
             "stop_loss": stop_price,
             "trailing_stop": None,
             "highest_price": entry_price,
+            "strategy": "vcp",
+            "vcp_score": candidate.get("vcp_score", 0),
+            "base_low": candidate.get("base_low"),
+            "pivot_price": candidate.get("pivot_price"),
         })
 
     def _expire_watchlist(self, current_date: pd.Timestamp):
@@ -304,6 +368,261 @@ class BacktestEngine:
             c for c in self.watchlist
             if (current_date - c["added_date"]).days <= expiry
         ]
+
+    def _get_current_regime(self, current_date: pd.Timestamp) -> str:
+        """Get market regime based on internal breadth indicator."""
+        if self.breadth_data is None or self.breadth_data.empty:
+            return "BULLISH"
+        valid = self.breadth_data[self.breadth_data.index <= current_date]
+        if valid.empty:
+            return "BULLISH"
+        breadth = float(valid["breadth"].iloc[-1])
+        if breadth >= 55:
+            return "BULLISH"
+        elif breadth >= 35:
+            return "CAUTIOUS"
+        else:
+            return "BEARISH"
+
+    def _manage_regime(self, all_data: dict, current_date: pd.Timestamp, regime: str):
+        """Defensive cash management based on market regime.
+
+        BEARISH: Close VCP positions that are currently at a loss (cut losers).
+        CAUTIOUS: No forced exits (trailing stops handle protection).
+        """
+        if regime != "BEARISH":
+            return
+
+        vcp_positions = [p for p in self.positions if p.get("strategy", "vcp") == "vcp"]
+        for pos in list(vcp_positions):
+            sym = pos["symbol"]
+            if sym in all_data:
+                df_slice = all_data[sym][all_data[sym].index <= current_date]
+                if not df_slice.empty and pos in self.positions:
+                    current_price = float(df_slice["close"].iloc[-1])
+                    # Only close positions that are losing money
+                    if current_price < pos["entry_price"]:
+                        self._close_position(
+                            pos, current_price, "regime_cut_loser", current_date,
+                        )
+
+    def _check_mr_exits(self, all_data: dict, current_date: pd.Timestamp):
+        """Check mean reversion positions for exits.
+
+        Exit when price reverts to 20-day SMA (target) or hits 5% stop.
+        """
+        to_close = []
+        for pos in self.positions:
+            if pos.get("strategy") != "mean_reversion":
+                continue
+            sym = pos["symbol"]
+            if sym not in all_data:
+                continue
+            df_slice = all_data[sym][all_data[sym].index <= current_date]
+            if df_slice.empty:
+                continue
+
+            current_price = float(df_slice["close"].iloc[-1])
+            today_low = float(df_slice["low"].iloc[-1])
+
+            # Stop loss
+            if today_low <= pos["stop_loss"]:
+                to_close.append((pos, pos["stop_loss"], "mr_stop", current_date))
+                continue
+
+            # Target: price reverts to SMA20
+            if len(df_slice) >= 20:
+                sma20 = float(df_slice["close"].rolling(20).mean().iloc[-1])
+                if current_price >= sma20:
+                    to_close.append((pos, current_price, "mr_target", current_date))
+                    continue
+
+            # Time limit: exit after 15 days regardless
+            hold_days = (current_date - pos["entry_date"]).days
+            if hold_days >= 15:
+                to_close.append((pos, current_price, "mr_timeout", current_date))
+
+        for pos, exit_price, reason, dt in to_close:
+            if pos in self.positions:
+                self._close_position(pos, exit_price, reason, dt)
+
+    def _enter_mean_reversion(self, all_data: dict, current_date: pd.Timestamp):
+        """Screen and enter mean reversion trades during non-bullish regimes.
+
+        Entry: stock closes 2+ std devs below 20-day SMA on above-average volume.
+        Stop: 5% below entry. Target: revert to SMA20.
+        Max 3 MR positions at a time.
+        """
+        mr_count = sum(1 for p in self.positions if p.get("strategy") == "mean_reversion")
+        max_mr = 3
+        if mr_count >= max_mr:
+            return
+
+        current_equity = self._current_equity(all_data, current_date)
+        held_symbols = {p["symbol"] for p in self.positions}
+        candidates = []
+
+        for sym, full_df in all_data.items():
+            if sym in held_symbols:
+                continue
+            df = full_df[full_df.index <= current_date]
+            if len(df) < 50:
+                continue
+
+            close = df["close"]
+            current_price = float(close.iloc[-1])
+
+            # Skip penny stocks
+            if current_price < settings.min_price:
+                continue
+
+            sma20 = float(close.rolling(20).mean().iloc[-1])
+            std20 = float(close.rolling(20).std().iloc[-1])
+            if std20 <= 0:
+                continue
+
+            today_volume = float(df["volume"].iloc[-1])
+            avg_volume = float(df["volume"].iloc[-50:].mean())
+
+            # Entry: 2+ std devs below SMA20 AND above-average volume (panic selling)
+            if current_price < sma20 - 2 * std20 and today_volume > avg_volume * 1.5:
+                z_score = (current_price - sma20) / std20
+                candidates.append({
+                    "symbol": sym,
+                    "close": current_price,
+                    "sma20": sma20,
+                    "z_score": z_score,
+                })
+
+        # Sort by most oversold first
+        candidates.sort(key=lambda x: x["z_score"])
+
+        for c in candidates[:5]:
+            if mr_count >= max_mr:
+                break
+
+            entry_price = c["close"]
+            stop_price = entry_price * 0.95  # tight 5% stop
+
+            # Smaller risk for mean reversion (1.5%)
+            risk_amount = current_equity * 0.015
+            risk_per_share = entry_price - stop_price
+            if risk_per_share <= 0:
+                continue
+            shares = int(risk_amount / risk_per_share)
+            if shares <= 0:
+                continue
+
+            cost = entry_price * shares
+            if cost > self.cash:
+                shares = int(self.cash / entry_price)
+                if shares <= 0:
+                    continue
+                cost = entry_price * shares
+
+            self.cash -= cost
+            self.positions.append({
+                "symbol": c["symbol"],
+                "entry_date": current_date,
+                "entry_price": entry_price,
+                "shares": shares,
+                "stop_loss": stop_price,
+                "trailing_stop": None,
+                "highest_price": entry_price,
+                "strategy": "mean_reversion",
+            })
+            mr_count += 1
+
+    def _check_rotations(self, all_data: dict, current_date: pd.Timestamp):
+        """Rotate failing VCP positions into better confirmed breakouts.
+
+        A position qualifies for rotation if:
+        - It is at > 4% loss (clearly failing)
+        - OR price has dropped below the VCP base low (pattern broken)
+
+        The new candidate must have a higher VCP score AND a confirmed
+        breakout today (above pivot + volume).
+        """
+        # Find failing VCP positions
+        failing = []
+        for pos in self.positions:
+            if pos.get("strategy") != "vcp":
+                continue
+            sym = pos["symbol"]
+            if sym not in all_data:
+                continue
+            df_slice = all_data[sym][all_data[sym].index <= current_date]
+            if df_slice.empty:
+                continue
+
+            current_price = float(df_slice["close"].iloc[-1])
+            gain_pct = (current_price / pos["entry_price"] - 1) * 100
+            base_low = pos.get("base_low")
+
+            # Condition 1: > 4% loss
+            is_losing = gain_pct < -4
+            # Condition 2: price dropped below VCP base (pattern broken)
+            below_base = base_low is not None and current_price < base_low
+
+            if is_losing or below_base:
+                reason = "below_base" if below_base else "loss_gt_4pct"
+                failing.append((pos, current_price, gain_pct, reason))
+
+        if not failing:
+            return
+
+        # Find confirmed breakouts in watchlist
+        held_symbols = {p["symbol"] for p in self.positions}
+        confirmed = []
+        for candidate in self.watchlist:
+            sym = candidate["symbol"]
+            if sym in held_symbols:
+                continue
+            if sym not in all_data:
+                continue
+
+            df = all_data[sym]
+            df_today = df[df.index == current_date]
+            if df_today.empty:
+                continue
+
+            today_close = float(df_today["close"].iloc[0])
+            today_volume = float(df_today["volume"].iloc[0])
+            pivot = candidate["pivot_price"]
+            avg_vol = candidate["avg_volume"]
+
+            if today_close > pivot and today_volume >= avg_vol * settings.breakout_volume_mult:
+                confirmed.append((candidate, today_close))
+
+        if not confirmed:
+            return
+
+        # Sort: best new candidates first, worst failing positions first
+        confirmed.sort(key=lambda x: -x[0]["vcp_score"])
+        failing.sort(key=lambda x: x[2])  # worst loss first
+
+        current_equity = self._current_equity(all_data, current_date)
+
+        for candidate, entry_price in confirmed:
+            if not failing:
+                break
+
+            # Find a failing position with lower VCP score
+            for i, (pos, exit_price, gain_pct, reason) in enumerate(failing):
+                pos_score = pos.get("vcp_score", 0)
+                if candidate["vcp_score"] > pos_score:
+                    # Close failing position
+                    self._close_position(pos, exit_price, f"rotation_{reason}", current_date)
+                    # Enter new position
+                    self._enter_position_at_price(
+                        candidate, entry_price, current_date,
+                        current_equity=current_equity,
+                    )
+                    # Remove from watchlist and failing list
+                    if candidate in self.watchlist:
+                        self.watchlist.remove(candidate)
+                    failing.pop(i)
+                    break
 
     def run(self, start_date: date, end_date: date, screen_interval_days: int = 5) -> dict:
         """Run the backtest over the given date range."""
@@ -315,8 +634,8 @@ class BacktestEngine:
             all_data = _load_all_prices(session)
             logger.info(f"Loaded data for {len(all_data)} stocks")
 
-            from vcp_screener.services.market_regime import get_nifty_data
-            self.nifty_data = get_nifty_data(period="5y")
+            logger.info("Computing market breadth...")
+            self.breadth_data = self._precompute_breadth(all_data)
 
             all_dates = set()
             for df in all_data.values():
@@ -334,16 +653,25 @@ class BacktestEngine:
             last_screen_date = None
 
             for i, current_date in enumerate(trading_days):
-                # 1. Check stops first
+                # 0. Get current market regime
+                regime = self._get_current_regime(current_date)
+
+                # 1. Check stops for VCP positions
                 self._check_stops(all_data, current_date)
 
-                # 2. Check watchlist for breakout confirmations
+                # 2. Check mean reversion exits
+                self._check_mr_exits(all_data, current_date)
+
+                # 3. Regime management (disabled — lagging signals hurt more than help)
+                # self._manage_regime(all_data, current_date, regime)
+
+                # 4. Check watchlist for VCP breakout confirmations
                 self._check_breakouts(all_data, current_date)
 
-                # 3. Expire stale watchlist entries
+                # 5. Expire stale watchlist entries
                 self._expire_watchlist(current_date)
 
-                # 4. Run screening periodically and add to watchlist
+                # 6. Run screening periodically and add to watchlist
                 should_screen = (
                     last_screen_date is None or
                     (current_date - last_screen_date).days >= screen_interval_days
@@ -362,7 +690,11 @@ class BacktestEngine:
                             candidate["added_date"] = current_date
                             self.watchlist.append(candidate)
 
-                # 5. Record equity
+                # 7. Mean reversion entries during BEARISH regime only
+                if regime == "BEARISH" and should_screen:
+                    self._enter_mean_reversion(all_data, current_date)
+
+                # 8. Record equity
                 equity = self._current_equity(all_data, current_date)
                 if equity > self.peak_equity:
                     self.peak_equity = equity

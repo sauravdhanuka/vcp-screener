@@ -37,7 +37,6 @@ def find_base_start(high: pd.Series, close: pd.Series, min_correction_pct: float
 
     Returns the integer index of the base start, or None.
     """
-    # Look for the highest point followed by a correction
     peak_idx = high.idxmax()
     peak_val = high[peak_idx]
     peak_pos = high.index.get_loc(peak_idx)
@@ -102,20 +101,32 @@ def detect_contractions(
     sh_list = list(sh_values.items())
     sl_list = list(sl_values.items())
 
-    # Build contraction ranges by matching swing highs with nearby swing lows
+    # Build contraction ranges with proper chronological alternation
     for i in range(len(sh_list)):
         sh_date, sh_val = sh_list[i]
-        # Find the nearest swing low after this swing high
-        nearby_lows = [(d, v) for d, v in sl_list if d >= sh_date]
+
+        # Ensure this swing high doesn't overlap with previous contraction
+        if contractions and sh_date < contractions[-1]["low_date"]:
+            continue
+
+        # Find the nearest swing low strictly after this swing high
+        nearby_lows = [(d, v) for d, v in sl_list if d > sh_date]
         if not nearby_lows:
             continue
 
         sl_date, sl_val = nearby_lows[0]
         range_pct = (sh_val - sl_val) / sh_val * 100
 
+        # Skip noise contractions (< 2% range)
+        if range_pct < 2:
+            continue
+
         # Volume in this contraction window
         mask = (v.index >= sh_date) & (v.index <= sl_date)
         contraction_vol = v[mask].mean() if mask.any() else 0
+
+        # Duration of this contraction in trading days
+        duration = mask.sum() if mask.any() else 0
 
         contractions.append({
             "high_date": sh_date,
@@ -124,6 +135,7 @@ def detect_contractions(
             "low_val": float(sl_val),
             "range_pct": float(range_pct),
             "avg_volume": float(contraction_vol),
+            "duration_days": int(duration),
         })
 
     if len(contractions) < settings.min_contractions:
@@ -184,11 +196,30 @@ def detect_contractions(
     # Accumulation Signature: Up/Down Volume Ratio (50 days)
     ud_ratio = up_down_volume_ratio(close, volume, period=50)
 
+    # Closing Price Tightness: std dev of last 10 closes relative to ATR
+    # Tight closes near the pivot = coiled spring ready to break out
+    if len(close) >= 14:
+        recent_closes = close.iloc[-10:]
+        close_std = recent_closes.std()
+        from vcp_screener.services.indicators import atr as compute_atr
+        atr_val = compute_atr(high, low, close, period=14).iloc[-1]
+        close_tightness = close_std / atr_val if atr_val > 0 and not np.isnan(atr_val) else 1.0
+    else:
+        close_tightness = 1.0
+
+    # Time contraction: check if contraction durations are decreasing
+    time_contracting = False
+    if len(valid_contractions) >= 2:
+        durations = [c["duration_days"] for c in valid_contractions]
+        if all(durations[i] >= durations[i + 1] for i in range(len(durations) - 1)):
+            time_contracting = True
+
     return {
         "found": True,
         "contractions": valid_contractions,
         "num_contractions": len(valid_contractions),
         "pivot_price": pivot_price,
+        "base_low": float(base_low),
         "base_depth_pct": base_depth_pct,
         "base_duration_days": base_duration,
         "tightness_ratio": tightness,
@@ -198,6 +229,8 @@ def detect_contractions(
         "shakeout_detected": shakeout_detected,
         "volume_quietness": volume_quietness,
         "ud_ratio": ud_ratio,
+        "close_tightness": close_tightness,
+        "time_contracting": time_contracting,
     }
 
 
@@ -264,5 +297,23 @@ def score_vcp(vcp_result: dict) -> float:
         score += 6
     else:
         score += 2
+
+    # Bonus: Volume quietness (recent volume well below average = dry-up)
+    vol_quiet = vcp_result.get("volume_quietness")
+    if vol_quiet is not None and vol_quiet < 0.7:
+        score += 5
+
+    # Bonus: Shakeout detected (undercut of previous low clears weak hands)
+    if vcp_result.get("shakeout_detected"):
+        score += 5
+
+    # Bonus: Time contraction (durations getting shorter = urgency building)
+    if vcp_result.get("time_contracting"):
+        score += 5
+
+    # Bonus: Closing price tightness (tight closes = coiled spring)
+    close_tight = vcp_result.get("close_tightness")
+    if close_tight is not None and close_tight < 0.5:
+        score += 5
 
     return min(score, 100.0)
