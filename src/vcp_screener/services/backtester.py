@@ -98,11 +98,115 @@ def _screen_on_date(all_data: dict[str, pd.DataFrame], as_of: pd.Timestamp) -> l
     return candidates[:settings.top_n]
 
 
+def precompute_mr_candidates(all_data: dict, start_date: date, end_date: date,
+                             screen_interval_days: int = 5) -> dict:
+    """Precompute mean reversion candidates for all screen dates.
+
+    Returns dict of pd.Timestamp -> list[dict].
+    """
+    all_dates = set()
+    for df in all_data.values():
+        all_dates.update(df.index)
+    trading_days = sorted([
+        d for d in all_dates
+        if start_date <= d.date() <= end_date
+    ])
+
+    mr_screens = {}
+    last_screen_date = None
+
+    for current_date in trading_days:
+        should_screen = (
+            last_screen_date is None or
+            (current_date - last_screen_date).days >= screen_interval_days
+        )
+        if not should_screen:
+            continue
+        last_screen_date = current_date
+
+        candidates = []
+        for sym, full_df in all_data.items():
+            df = full_df[full_df.index <= current_date]
+            if len(df) < 50:
+                continue
+            close = df["close"]
+            current_price = float(close.iloc[-1])
+            if current_price < settings.min_price:
+                continue
+            sma20 = float(close.rolling(20).mean().iloc[-1])
+            std20 = float(close.rolling(20).std().iloc[-1])
+            if std20 <= 0:
+                continue
+            today_volume = float(df["volume"].iloc[-1])
+            avg_volume = float(df["volume"].iloc[-50:].mean())
+            if current_price < sma20 - 2 * std20 and today_volume > avg_volume * 1.5:
+                z_score = (current_price - sma20) / std20
+                candidates.append({
+                    "symbol": sym, "close": current_price,
+                    "sma20": sma20, "z_score": z_score,
+                })
+
+        candidates.sort(key=lambda x: x["z_score"])
+        mr_screens[current_date] = candidates[:5]
+
+    return mr_screens
+
+
+def precompute_screens(all_data: dict, start_date: date, end_date: date,
+                       screen_interval_days: int = 5) -> dict:
+    """Precompute VCP screening results for all screen dates.
+
+    Returns dict of pd.Timestamp -> list[dict] (candidates).
+    Use with BacktestEngine.run(precomputed_screens=...) to skip screening.
+    """
+    all_dates = set()
+    for df in all_data.values():
+        all_dates.update(df.index)
+    trading_days = sorted([
+        d for d in all_dates
+        if start_date <= d.date() <= end_date
+    ])
+
+    screens = {}
+    last_screen_date = None
+
+    for current_date in trading_days:
+        should_screen = (
+            last_screen_date is None or
+            (current_date - last_screen_date).days >= screen_interval_days
+        )
+        if should_screen:
+            screens[current_date] = _screen_on_date(all_data, current_date)
+            last_screen_date = current_date
+
+    return screens
+
+
+def load_backtest_data() -> tuple[dict, "pd.DataFrame"]:
+    """Load all price data and precompute breadth. Returns (all_data, breadth_df).
+
+    Use this to load data once for parameter sweeps.
+    """
+    init_db()
+    session = get_session()
+    try:
+        all_data = _load_all_prices(session)
+    finally:
+        session.close()
+    # Use a temporary engine to compute breadth
+    engine = BacktestEngine.__new__(BacktestEngine)
+    breadth = engine._precompute_breadth(all_data)
+    return all_data, breadth
+
+
 class BacktestEngine:
     """Event-driven backtesting engine with breakout confirmation."""
 
     def __init__(self, initial_capital: float = None, max_positions: int = None,
-                 eq_ma_days: int = 0, dd_max_positions: int = 3, dd_risk_mult: float = 1.0):
+                 eq_ma_days: int = 40, dd_max_positions: int = 3, dd_risk_mult: float = 1.0):
+        # Best EqMA configs from 129-config sweep (2021-2025):
+        #   Winner:    eq_ma_days=40, dd_max_positions=3, dd_risk_mult=1.0  → 1026.1%, 32.0% MaxDD, 1.98 Sharpe
+        #   Runner-up: eq_ma_days=40, dd_max_positions=4, dd_risk_mult=0.75 → 1057.0%, 33.1% MaxDD, 1.97 Sharpe
         self.initial_capital = initial_capital or settings.account_size
         self.max_positions = max_positions or settings.max_positions
         self.cash = self.initial_capital
@@ -446,7 +550,8 @@ class BacktestEngine:
             if pos in self.positions:
                 self._close_position(pos, exit_price, reason, dt)
 
-    def _enter_mean_reversion(self, all_data: dict, current_date: pd.Timestamp):
+    def _enter_mean_reversion(self, all_data: dict, current_date: pd.Timestamp,
+                              precomputed_mr: dict = None):
         """Screen and enter mean reversion trades during non-bullish regimes.
 
         Entry: stock closes 2+ std devs below 20-day SMA on above-average volume.
@@ -460,42 +565,43 @@ class BacktestEngine:
 
         current_equity = self._current_equity(all_data, current_date)
         held_symbols = {p["symbol"] for p in self.positions}
-        candidates = []
 
-        for sym, full_df in all_data.items():
-            if sym in held_symbols:
-                continue
-            df = full_df[full_df.index <= current_date]
-            if len(df) < 50:
-                continue
+        if precomputed_mr is not None:
+            candidates = [c for c in precomputed_mr.get(current_date, [])
+                          if c["symbol"] not in held_symbols]
+        else:
+            candidates = []
+            for sym, full_df in all_data.items():
+                if sym in held_symbols:
+                    continue
+                df = full_df[full_df.index <= current_date]
+                if len(df) < 50:
+                    continue
 
-            close = df["close"]
-            current_price = float(close.iloc[-1])
+                close = df["close"]
+                current_price = float(close.iloc[-1])
 
-            # Skip penny stocks
-            if current_price < settings.min_price:
-                continue
+                if current_price < settings.min_price:
+                    continue
 
-            sma20 = float(close.rolling(20).mean().iloc[-1])
-            std20 = float(close.rolling(20).std().iloc[-1])
-            if std20 <= 0:
-                continue
+                sma20 = float(close.rolling(20).mean().iloc[-1])
+                std20 = float(close.rolling(20).std().iloc[-1])
+                if std20 <= 0:
+                    continue
 
-            today_volume = float(df["volume"].iloc[-1])
-            avg_volume = float(df["volume"].iloc[-50:].mean())
+                today_volume = float(df["volume"].iloc[-1])
+                avg_volume = float(df["volume"].iloc[-50:].mean())
 
-            # Entry: 2+ std devs below SMA20 AND above-average volume (panic selling)
-            if current_price < sma20 - 2 * std20 and today_volume > avg_volume * 1.5:
-                z_score = (current_price - sma20) / std20
-                candidates.append({
-                    "symbol": sym,
-                    "close": current_price,
-                    "sma20": sma20,
-                    "z_score": z_score,
-                })
+                if current_price < sma20 - 2 * std20 and today_volume > avg_volume * 1.5:
+                    z_score = (current_price - sma20) / std20
+                    candidates.append({
+                        "symbol": sym,
+                        "close": current_price,
+                        "sma20": sma20,
+                        "z_score": z_score,
+                    })
 
-        # Sort by most oversold first
-        candidates.sort(key=lambda x: x["z_score"])
+            candidates.sort(key=lambda x: x["z_score"])
 
         for c in candidates[:5]:
             if mr_count >= max_mr:
@@ -624,106 +730,117 @@ class BacktestEngine:
                     failing.pop(i)
                     break
 
-    def run(self, start_date: date, end_date: date, screen_interval_days: int = 5) -> dict:
-        """Run the backtest over the given date range."""
-        init_db()
-        session = get_session()
+    def run(self, start_date: date, end_date: date, screen_interval_days: int = 5,
+            preloaded_data: dict = None, preloaded_breadth: "pd.DataFrame | None" = None,
+            precomputed_screens: dict = None, precomputed_mr: dict = None) -> dict:
+        """Run the backtest over the given date range.
 
-        try:
-            logger.info("Loading all price data...")
-            all_data = _load_all_prices(session)
-            logger.info(f"Loaded data for {len(all_data)} stocks")
+        Pass preloaded_data and preloaded_breadth to skip DB loading (for parameter sweeps).
+        Pass precomputed_screens (dict of date -> candidates list) to skip VCP screening.
+        """
+        if preloaded_data is not None:
+            all_data = preloaded_data
+            self.breadth_data = preloaded_breadth if preloaded_breadth is not None else self._precompute_breadth(all_data)
+        else:
+            init_db()
+            session = get_session()
+            try:
+                logger.info("Loading all price data...")
+                all_data = _load_all_prices(session)
+                logger.info(f"Loaded data for {len(all_data)} stocks")
+                logger.info("Computing market breadth...")
+                self.breadth_data = self._precompute_breadth(all_data)
+            finally:
+                session.close()
+                session = None
 
-            logger.info("Computing market breadth...")
-            self.breadth_data = self._precompute_breadth(all_data)
+        all_dates = set()
+        for df in all_data.values():
+            all_dates.update(df.index)
+        trading_days = sorted([
+            d for d in all_dates
+            if start_date <= d.date() <= end_date
+        ])
 
-            all_dates = set()
-            for df in all_data.values():
-                all_dates.update(df.index)
-            trading_days = sorted([
-                d for d in all_dates
-                if start_date <= d.date() <= end_date
-            ])
+        if not trading_days:
+            return {"error": "No trading days in range"}
 
-            if not trading_days:
-                return {"error": "No trading days in range"}
+        logger.info(f"Backtesting {len(trading_days)} trading days from {start_date} to {end_date}")
 
-            logger.info(f"Backtesting {len(trading_days)} trading days from {start_date} to {end_date}")
+        last_screen_date = None
 
-            last_screen_date = None
+        for i, current_date in enumerate(trading_days):
+            # 0. Get current market regime
+            regime = self._get_current_regime(current_date)
 
-            for i, current_date in enumerate(trading_days):
-                # 0. Get current market regime
-                regime = self._get_current_regime(current_date)
+            # 1. Check stops for VCP positions
+            self._check_stops(all_data, current_date)
 
-                # 1. Check stops for VCP positions
-                self._check_stops(all_data, current_date)
+            # 2. Check mean reversion exits
+            self._check_mr_exits(all_data, current_date)
 
-                # 2. Check mean reversion exits
-                self._check_mr_exits(all_data, current_date)
+            # 3. Regime management (disabled — lagging signals hurt more than help)
+            # self._manage_regime(all_data, current_date, regime)
 
-                # 3. Regime management (disabled — lagging signals hurt more than help)
-                # self._manage_regime(all_data, current_date, regime)
+            # 4. Check watchlist for VCP breakout confirmations
+            self._check_breakouts(all_data, current_date)
 
-                # 4. Check watchlist for VCP breakout confirmations
-                self._check_breakouts(all_data, current_date)
+            # 5. Expire stale watchlist entries
+            self._expire_watchlist(current_date)
 
-                # 5. Expire stale watchlist entries
-                self._expire_watchlist(current_date)
+            # 6. Run screening periodically and add to watchlist
+            should_screen = (
+                last_screen_date is None or
+                (current_date - last_screen_date).days >= screen_interval_days
+            )
 
-                # 6. Run screening periodically and add to watchlist
-                should_screen = (
-                    last_screen_date is None or
-                    (current_date - last_screen_date).days >= screen_interval_days
-                )
-
-                if should_screen:
+            if should_screen:
+                if precomputed_screens is not None:
+                    screen_results = precomputed_screens.get(current_date, [])
+                else:
                     screen_results = _screen_on_date(all_data, current_date)
-                    last_screen_date = current_date
+                last_screen_date = current_date
 
-                    # Add new candidates to watchlist (avoid duplicates)
-                    watchlist_symbols = {c["symbol"] for c in self.watchlist}
-                    held_symbols = {p["symbol"] for p in self.positions}
-                    for candidate in screen_results:
-                        sym = candidate["symbol"]
-                        if sym not in watchlist_symbols and sym not in held_symbols:
-                            candidate["added_date"] = current_date
-                            self.watchlist.append(candidate)
+                # Add new candidates to watchlist (avoid duplicates)
+                watchlist_symbols = {c["symbol"] for c in self.watchlist}
+                held_symbols = {p["symbol"] for p in self.positions}
+                for candidate in screen_results:
+                    sym = candidate["symbol"]
+                    if sym not in watchlist_symbols and sym not in held_symbols:
+                        candidate["added_date"] = current_date
+                        self.watchlist.append(candidate)
 
-                # 7. Mean reversion entries during BEARISH regime only
-                if regime == "BEARISH" and should_screen:
-                    self._enter_mean_reversion(all_data, current_date)
+            # 7. Mean reversion entries during BEARISH regime only
+            if regime == "BEARISH" and should_screen:
+                self._enter_mean_reversion(all_data, current_date, precomputed_mr=precomputed_mr)
 
-                # 8. Record equity
-                equity = self._current_equity(all_data, current_date)
-                if equity > self.peak_equity:
-                    self.peak_equity = equity
-                drawdown = (self.peak_equity - equity) / self.peak_equity * 100
+            # 8. Record equity
+            equity = self._current_equity(all_data, current_date)
+            if equity > self.peak_equity:
+                self.peak_equity = equity
+            drawdown = (self.peak_equity - equity) / self.peak_equity * 100
 
-                self.equity_curve.append({
-                    "date": current_date,
-                    "equity": equity,
-                    "drawdown_pct": drawdown,
-                })
+            self.equity_curve.append({
+                "date": current_date,
+                "equity": equity,
+                "drawdown_pct": drawdown,
+            })
 
-                if (i + 1) % 50 == 0:
-                    logger.info(f"  Day {i + 1}/{len(trading_days)}: equity=Rs {equity:,.0f} "
-                                f"(positions={len(self.positions)}, watchlist={len(self.watchlist)})")
+            if (i + 1) % 50 == 0:
+                logger.info(f"  Day {i + 1}/{len(trading_days)}: equity=Rs {equity:,.0f} "
+                            f"(positions={len(self.positions)}, watchlist={len(self.watchlist)})")
 
-            # Close remaining positions at last day's close
-            final_date = trading_days[-1]
-            for pos in list(self.positions):
-                sym = pos["symbol"]
-                if sym in all_data:
-                    df = all_data[sym]
-                    df_final = df[df.index <= final_date]
-                    if not df_final.empty:
-                        self._close_position(pos, float(df_final["close"].iloc[-1]), "end_of_backtest", final_date)
+        # Close remaining positions at last day's close
+        final_date = trading_days[-1]
+        for pos in list(self.positions):
+            sym = pos["symbol"]
+            if sym in all_data:
+                df = all_data[sym]
+                df_final = df[df.index <= final_date]
+                if not df_final.empty:
+                    self._close_position(pos, float(df_final["close"].iloc[-1]), "end_of_backtest", final_date)
 
-            return self._compute_metrics(start_date, end_date)
-
-        finally:
-            session.close()
+        return self._compute_metrics(start_date, end_date)
 
     def _compute_metrics(self, start_date: date, end_date: date) -> dict:
         """Compute performance metrics from closed trades and equity curve."""
