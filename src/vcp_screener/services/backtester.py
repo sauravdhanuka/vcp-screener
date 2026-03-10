@@ -98,6 +98,36 @@ def _screen_on_date(all_data: dict[str, pd.DataFrame], as_of: pd.Timestamp) -> l
     return candidates[:settings.top_n]
 
 
+def precompute_mr_indicators(all_data: dict) -> dict:
+    """Precompute all MR indicators for each stock.
+
+    Returns dict of symbol -> DataFrame with columns:
+    sma20, std20, sma200, rsi2, ibs, avg_vol, vol
+    """
+    from vcp_screener.services.indicators import rsi as compute_rsi, internal_bar_strength
+
+    indicators = {}
+    for sym, df in all_data.items():
+        if len(df) < 50:
+            continue
+        close = df["close"]
+        ind = pd.DataFrame(index=df.index)
+        ind["close"] = close
+        ind["sma20"] = close.rolling(20).mean()
+        ind["std20"] = close.rolling(20).std()
+        ind["sma200"] = close.rolling(200, min_periods=200).mean()
+        ind["rsi2"] = compute_rsi(close, period=2)
+        ind["ibs"] = internal_bar_strength(df["high"], df["low"], close)
+        ind["vol"] = df["volume"]
+        ind["avg_vol"] = df["volume"].rolling(50, min_periods=10).mean()
+        # Precompute "any of last N days had high volume" for lookbacks 1-5
+        for lb in [1, 2, 3, 5]:
+            high_vol = (df["volume"] > ind["avg_vol"] * 1.5).astype(float)
+            ind[f"vol_ok_{lb}"] = high_vol.rolling(lb, min_periods=1).max()
+        indicators[sym] = ind
+    return indicators
+
+
 def precompute_mr_candidates(all_data: dict, start_date: date, end_date: date,
                              screen_interval_days: int = 5) -> dict:
     """Precompute mean reversion candidates for all screen dates.
@@ -203,7 +233,8 @@ class BacktestEngine:
     """Event-driven backtesting engine with breakout confirmation."""
 
     def __init__(self, initial_capital: float = None, max_positions: int = None,
-                 eq_ma_days: int = 40, dd_max_positions: int = 3, dd_risk_mult: float = 1.0):
+                 eq_ma_days: int = 40, dd_max_positions: int = 3, dd_risk_mult: float = 1.0,
+                 mr_config: dict = None):
         # Best EqMA configs from 129-config sweep (2021-2025):
         #   Winner:    eq_ma_days=40, dd_max_positions=3, dd_risk_mult=1.0  → 1026.1%, 32.0% MaxDD, 1.98 Sharpe
         #   Runner-up: eq_ma_days=40, dd_max_positions=4, dd_risk_mult=0.75 → 1057.0%, 33.1% MaxDD, 1.97 Sharpe
@@ -220,6 +251,28 @@ class BacktestEngine:
         self.eq_ma_days = eq_ma_days
         self.dd_max_positions = dd_max_positions
         self.dd_risk_mult = dd_risk_mult
+        # Mean Reversion parameters
+        # Best config from 35-combo sweep (10Y, 2016-2026):
+        #   Stop12+RSI<5: 2663%, 27.4% DD, 1.63 Sharpe, 2.02 PF
+        #   Runner-up: Exit+Ent1.5+RSI<5+IBS<0.2: 3150%, 24.8% DD, 1.61 Sharpe
+        self.mr = {
+            "stop_pct": 12,          # Stop loss percentage (was 5, widened per sweep)
+            "target": "sma20",       # Exit target: "sma20", "sma10", "sma5", "rsi"
+            "rsi_exit": 0,           # RSI(2) exit threshold (0 = disabled)
+            "timeout_days": 15,      # Max holding period
+            "max_positions": 3,      # Max MR positions
+            "risk_pct": 1.5,         # Risk per trade %
+            "entry_std": 2.0,        # Bollinger Band std dev threshold
+            "require_rsi": True,     # Require RSI(2) < rsi_entry (was False)
+            "rsi_entry": 5,          # RSI(2) entry threshold (was 10)
+            "require_ibs": False,    # Require IBS < ibs_entry
+            "ibs_entry": 0.3,        # IBS entry threshold
+            "require_uptrend": False, # Require price > SMA(200)
+            "all_regimes": False,    # Activate MR in all regimes (not just BEARISH)
+            "vol_lookback": 1,       # Volume check: 1=today only, 3=any of last 3 days
+        }
+        if mr_config:
+            self.mr.update(mr_config)
 
     def _current_equity(self, all_data: dict, as_of: pd.Timestamp) -> float:
         equity = self.cash
@@ -511,10 +564,9 @@ class BacktestEngine:
                         )
 
     def _check_mr_exits(self, all_data: dict, current_date: pd.Timestamp):
-        """Check mean reversion positions for exits.
+        """Check mean reversion positions for exits."""
+        from vcp_screener.services.indicators import rsi as compute_rsi
 
-        Exit when price reverts to 20-day SMA (target) or hits 5% stop.
-        """
         to_close = []
         for pos in self.positions:
             if pos.get("strategy") != "mean_reversion":
@@ -534,16 +586,34 @@ class BacktestEngine:
                 to_close.append((pos, pos["stop_loss"], "mr_stop", current_date))
                 continue
 
-            # Target: price reverts to SMA20
-            if len(df_slice) >= 20:
-                sma20 = float(df_slice["close"].rolling(20).mean().iloc[-1])
-                if current_price >= sma20:
+            # RSI-based exit (sell on strength)
+            if self.mr["rsi_exit"] > 0 and len(df_slice) >= 3:
+                rsi_val = float(compute_rsi(df_slice["close"], period=2).iloc[-1])
+                if rsi_val > self.mr["rsi_exit"]:
+                    to_close.append((pos, current_price, "mr_rsi_exit", current_date))
+                    continue
+
+            # SMA target
+            target = self.mr["target"]
+            if target == "sma20" and len(df_slice) >= 20:
+                sma_val = float(df_slice["close"].rolling(20).mean().iloc[-1])
+                if current_price >= sma_val:
+                    to_close.append((pos, current_price, "mr_target", current_date))
+                    continue
+            elif target == "sma10" and len(df_slice) >= 10:
+                sma_val = float(df_slice["close"].rolling(10).mean().iloc[-1])
+                if current_price >= sma_val:
+                    to_close.append((pos, current_price, "mr_target", current_date))
+                    continue
+            elif target == "sma5" and len(df_slice) >= 5:
+                sma_val = float(df_slice["close"].rolling(5).mean().iloc[-1])
+                if current_price >= sma_val:
                     to_close.append((pos, current_price, "mr_target", current_date))
                     continue
 
-            # Time limit: exit after 15 days regardless
+            # Time limit
             hold_days = (current_date - pos["entry_date"]).days
-            if hold_days >= 15:
+            if hold_days >= self.mr["timeout_days"]:
                 to_close.append((pos, current_price, "mr_timeout", current_date))
 
         for pos, exit_price, reason, dt in to_close:
@@ -551,67 +621,100 @@ class BacktestEngine:
                 self._close_position(pos, exit_price, reason, dt)
 
     def _enter_mean_reversion(self, all_data: dict, current_date: pd.Timestamp,
-                              precomputed_mr: dict = None):
-        """Screen and enter mean reversion trades during non-bullish regimes.
-
-        Entry: stock closes 2+ std devs below 20-day SMA on above-average volume.
-        Stop: 5% below entry. Target: revert to SMA20.
-        Max 3 MR positions at a time.
-        """
+                              precomputed_mr: dict = None, mr_indicators: dict = None):
+        """Screen and enter mean reversion trades. Configurable via self.mr dict."""
         mr_count = sum(1 for p in self.positions if p.get("strategy") == "mean_reversion")
-        max_mr = 3
+        max_mr = self.mr["max_positions"]
         if mr_count >= max_mr:
             return
 
         current_equity = self._current_equity(all_data, current_date)
         held_symbols = {p["symbol"] for p in self.positions}
+        entry_std = self.mr["entry_std"]
+        vol_lb = min(self.mr["vol_lookback"], 5)
+        vol_col = f"vol_ok_{vol_lb}" if vol_lb in (1, 2, 3, 5) else "vol_ok_1"
 
-        if precomputed_mr is not None:
-            candidates = [c for c in precomputed_mr.get(current_date, [])
-                          if c["symbol"] not in held_symbols]
+        candidates = []
+
+        if mr_indicators:
+            # Fast path: use precomputed indicators
+            for sym, ind in mr_indicators.items():
+                if sym in held_symbols:
+                    continue
+                row = ind[ind.index <= current_date]
+                if row.empty:
+                    continue
+                last = row.iloc[-1]
+                cp = float(last["close"])
+                if cp < settings.min_price:
+                    continue
+                sma20 = last["sma20"]
+                std20 = last["std20"]
+                if pd.isna(sma20) or pd.isna(std20) or std20 <= 0:
+                    continue
+                if cp >= sma20 - entry_std * std20:
+                    continue
+                if vol_col in last and not last[vol_col]:
+                    continue
+                if self.mr["require_rsi"] and last["rsi2"] >= self.mr["rsi_entry"]:
+                    continue
+                if self.mr["require_ibs"] and last["ibs"] >= self.mr["ibs_entry"]:
+                    continue
+                if self.mr["require_uptrend"] and not pd.isna(last["sma200"]) and cp < last["sma200"]:
+                    continue
+                z_score = (cp - sma20) / std20
+                candidates.append({"symbol": sym, "close": cp, "sma20": float(sma20), "z_score": float(z_score)})
         else:
-            candidates = []
+            # Slow path: compute on the fly
+            from vcp_screener.services.indicators import rsi as compute_rsi, internal_bar_strength
             for sym, full_df in all_data.items():
                 if sym in held_symbols:
                     continue
                 df = full_df[full_df.index <= current_date]
                 if len(df) < 50:
                     continue
-
                 close = df["close"]
                 current_price = float(close.iloc[-1])
-
                 if current_price < settings.min_price:
                     continue
-
                 sma20 = float(close.rolling(20).mean().iloc[-1])
                 std20 = float(close.rolling(20).std().iloc[-1])
                 if std20 <= 0:
                     continue
-
-                today_volume = float(df["volume"].iloc[-1])
+                if current_price >= sma20 - entry_std * std20:
+                    continue
                 avg_volume = float(df["volume"].iloc[-50:].mean())
+                vol_ok = any(
+                    float(df["volume"].iloc[-(vi + 1)]) > avg_volume * 1.5
+                    for vi in range(min(vol_lb, len(df)))
+                )
+                if not vol_ok:
+                    continue
+                if self.mr["require_rsi"]:
+                    if float(compute_rsi(close, period=2).iloc[-1]) >= self.mr["rsi_entry"]:
+                        continue
+                if self.mr["require_ibs"]:
+                    if float(internal_bar_strength(df["high"], df["low"], close).iloc[-1]) >= self.mr["ibs_entry"]:
+                        continue
+                if self.mr["require_uptrend"] and len(df) >= 200:
+                    if current_price < float(close.rolling(200).mean().iloc[-1]):
+                        continue
+                z_score = (current_price - sma20) / std20
+                candidates.append({"symbol": sym, "close": current_price, "sma20": sma20, "z_score": z_score})
 
-                if current_price < sma20 - 2 * std20 and today_volume > avg_volume * 1.5:
-                    z_score = (current_price - sma20) / std20
-                    candidates.append({
-                        "symbol": sym,
-                        "close": current_price,
-                        "sma20": sma20,
-                        "z_score": z_score,
-                    })
+        candidates.sort(key=lambda x: x["z_score"])
 
-            candidates.sort(key=lambda x: x["z_score"])
+        stop_pct = self.mr["stop_pct"] / 100
+        risk_pct = self.mr["risk_pct"] / 100
 
         for c in candidates[:5]:
             if mr_count >= max_mr:
                 break
 
             entry_price = c["close"]
-            stop_price = entry_price * 0.95  # tight 5% stop
+            stop_price = entry_price * (1 - stop_pct)
 
-            # Smaller risk for mean reversion (1.5%)
-            risk_amount = current_equity * 0.015
+            risk_amount = current_equity * risk_pct
             risk_per_share = entry_price - stop_price
             if risk_per_share <= 0:
                 continue
@@ -732,7 +835,8 @@ class BacktestEngine:
 
     def run(self, start_date: date, end_date: date, screen_interval_days: int = 5,
             preloaded_data: dict = None, preloaded_breadth: "pd.DataFrame | None" = None,
-            precomputed_screens: dict = None, precomputed_mr: dict = None) -> dict:
+            precomputed_screens: dict = None, precomputed_mr: dict = None,
+            precomputed_mr_ind: dict = None) -> dict:
         """Run the backtest over the given date range.
 
         Pass preloaded_data and preloaded_breadth to skip DB loading (for parameter sweeps).
@@ -811,8 +915,9 @@ class BacktestEngine:
                         self.watchlist.append(candidate)
 
             # 7. Mean reversion entries during BEARISH regime only
-            if regime == "BEARISH" and should_screen:
-                self._enter_mean_reversion(all_data, current_date, precomputed_mr=precomputed_mr)
+            mr_active = regime == "BEARISH" or self.mr.get("all_regimes", False)
+            if mr_active and should_screen:
+                self._enter_mean_reversion(all_data, current_date, mr_indicators=precomputed_mr_ind)
 
             # 8. Record equity
             equity = self._current_equity(all_data, current_date)
