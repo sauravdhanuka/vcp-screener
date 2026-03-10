@@ -234,12 +234,13 @@ class BacktestEngine:
 
     def __init__(self, initial_capital: float = None, max_positions: int = None,
                  eq_ma_days: int = 40, dd_max_positions: int = 3, dd_risk_mult: float = 1.0,
-                 mr_config: dict = None):
+                 mr_config: dict = None, regime_config: dict = None, compounding: bool = True):
         # Best EqMA configs from 129-config sweep (2021-2025):
         #   Winner:    eq_ma_days=40, dd_max_positions=3, dd_risk_mult=1.0  → 1026.1%, 32.0% MaxDD, 1.98 Sharpe
         #   Runner-up: eq_ma_days=40, dd_max_positions=4, dd_risk_mult=0.75 → 1057.0%, 33.1% MaxDD, 1.97 Sharpe
         self.initial_capital = initial_capital or settings.account_size
         self.max_positions = max_positions or settings.max_positions
+        self.compounding = compounding
         self.cash = self.initial_capital
         self.positions: list[dict] = []
         self.closed_trades: list[dict] = []
@@ -253,26 +254,39 @@ class BacktestEngine:
         self.dd_risk_mult = dd_risk_mult
         # Mean Reversion parameters
         # Best config from 35-combo sweep (10Y, 2016-2026):
-        #   Stop12+RSI<5: 2663%, 27.4% DD, 1.63 Sharpe, 2.02 PF
-        #   Runner-up: Exit+Ent1.5+RSI<5+IBS<0.2: 3150%, 24.8% DD, 1.61 Sharpe
+        #   Runner-up (now default): Stop5+SMA10+RSI65+Ent1.5+RSI<5+IBS<0.2
+        #     Compounding: 3150%, 24.8% DD, 1.61 Sharpe, 1.74 PF
+        #     No-compound: 406.5%, 17.3% DD, 1.32 Sharpe, 1.70 PF
+        #   Previous default (Stop12+RSI<5): 2663%, 27.4% DD, 1.63 Sharpe, 2.02 PF
         self.mr = {
-            "stop_pct": 12,          # Stop loss percentage (was 5, widened per sweep)
-            "target": "sma20",       # Exit target: "sma20", "sma10", "sma5", "rsi"
-            "rsi_exit": 0,           # RSI(2) exit threshold (0 = disabled)
+            "stop_pct": 5,           # Stop loss percentage
+            "target": "sma10",       # Exit target: "sma20", "sma10", "sma5", "rsi"
+            "rsi_exit": 65,          # RSI(2) exit threshold (0 = disabled)
             "timeout_days": 15,      # Max holding period
             "max_positions": 3,      # Max MR positions
             "risk_pct": 1.5,         # Risk per trade %
-            "entry_std": 2.0,        # Bollinger Band std dev threshold
-            "require_rsi": True,     # Require RSI(2) < rsi_entry (was False)
-            "rsi_entry": 5,          # RSI(2) entry threshold (was 10)
-            "require_ibs": False,    # Require IBS < ibs_entry
-            "ibs_entry": 0.3,        # IBS entry threshold
+            "entry_std": 1.5,        # Bollinger Band std dev threshold
+            "require_rsi": True,     # Require RSI(2) < rsi_entry
+            "rsi_entry": 5,          # RSI(2) entry threshold
+            "require_ibs": True,     # Require IBS < ibs_entry
+            "ibs_entry": 0.2,        # IBS entry threshold
             "require_uptrend": False, # Require price > SMA(200)
             "all_regimes": False,    # Activate MR in all regimes (not just BEARISH)
             "vol_lookback": 1,       # Volume check: 1=today only, 3=any of last 3 days
         }
         if mr_config:
             self.mr.update(mr_config)
+        # Regime detection parameters
+        self.regime = {
+            "method": "breadth",     # "breadth", "breadth_cross", "breadth_roc", "nifty_ma", "nifty_or_breadth"
+            "bear_threshold": 35,    # breadth below this = BEARISH
+            "bull_threshold": 55,    # breadth above this = BULLISH
+            "roc_period": 20,        # for breadth_roc: lookback period
+            "roc_threshold": -15,    # for breadth_roc: drop (in points) to trigger BEARISH
+            "nifty_ma_period": 200,  # for nifty_ma: SMA period
+        }
+        if regime_config:
+            self.regime.update(regime_config)
 
     def _current_equity(self, all_data: dict, as_of: pd.Timestamp) -> float:
         equity = self.cash
@@ -306,9 +320,13 @@ class BacktestEngine:
         smoothed = raw_breadth.rolling(10, min_periods=1).mean()
         breadth_sma = smoothed.rolling(10, min_periods=1).mean()
 
+        # Rate of change: breadth change over last 20 days
+        breadth_roc = smoothed - smoothed.shift(20)
+
         return pd.DataFrame({
             "breadth": smoothed,
             "breadth_sma": breadth_sma,
+            "breadth_roc": breadth_roc,
         })
 
     def _check_stops(self, all_data: dict, current_date: pd.Timestamp):
@@ -435,8 +453,8 @@ class BacktestEngine:
         if len(self.positions) >= effective_max:
             return
 
-        # Compounding: use current total equity for position sizing
-        current_equity = self._current_equity(all_data, current_date)
+        # Position sizing: current equity (compounding) or initial capital (fixed)
+        current_equity = self._current_equity(all_data, current_date) if self.compounding else self.initial_capital
 
         held_symbols = {p["symbol"] for p in self.positions}
         triggered = []
@@ -527,19 +545,65 @@ class BacktestEngine:
         ]
 
     def _get_current_regime(self, current_date: pd.Timestamp) -> str:
-        """Get market regime based on internal breadth indicator."""
+        """Get market regime based on configured method."""
+        method = self.regime["method"]
+        bear_th = self.regime["bear_threshold"]
+        bull_th = self.regime["bull_threshold"]
+
+        # Nifty-based methods
+        if method in ("nifty_ma", "nifty_or_breadth"):
+            nifty = getattr(self, "nifty_data", None)
+            if nifty is not None and not nifty.empty:
+                valid_n = nifty[nifty.index <= current_date]
+                if not valid_n.empty:
+                    nifty_close = float(valid_n["close"].iloc[-1])
+                    nifty_sma = float(valid_n["sma"].iloc[-1]) if not pd.isna(valid_n["sma"].iloc[-1]) else nifty_close
+                    nifty_bearish = nifty_close < nifty_sma
+
+                    if method == "nifty_ma":
+                        return "BEARISH" if nifty_bearish else "BULLISH"
+
+                    # nifty_or_breadth: BEARISH if either Nifty below MA OR breadth below threshold
+                    if nifty_bearish:
+                        return "BEARISH"
+                    # Fall through to breadth check below
+
+        # Breadth-based methods
         if self.breadth_data is None or self.breadth_data.empty:
             return "BULLISH"
         valid = self.breadth_data[self.breadth_data.index <= current_date]
         if valid.empty:
             return "BULLISH"
+
         breadth = float(valid["breadth"].iloc[-1])
-        if breadth >= 55:
-            return "BULLISH"
-        elif breadth >= 35:
+
+        if method == "breadth_cross":
+            # BEARISH when breadth crosses below its own SMA AND breadth < threshold
+            breadth_sma = float(valid["breadth_sma"].iloc[-1])
+            if breadth < bear_th and breadth < breadth_sma:
+                return "BEARISH"
+            elif breadth >= bull_th:
+                return "BULLISH"
             return "CAUTIOUS"
+
+        elif method == "breadth_roc":
+            # BEARISH when breadth drops fast (rate of change)
+            roc = float(valid["breadth_roc"].iloc[-1]) if not pd.isna(valid["breadth_roc"].iloc[-1]) else 0
+            roc_th = self.regime["roc_threshold"]
+            if breadth < bear_th or roc < roc_th:
+                return "BEARISH"
+            elif breadth >= bull_th:
+                return "BULLISH"
+            return "CAUTIOUS"
+
         else:
-            return "BEARISH"
+            # Default breadth method (also used as fallback for nifty_or_breadth)
+            if breadth >= bull_th:
+                return "BULLISH"
+            elif breadth >= bear_th:
+                return "CAUTIOUS"
+            else:
+                return "BEARISH"
 
     def _manage_regime(self, all_data: dict, current_date: pd.Timestamp, regime: str):
         """Defensive cash management based on market regime.
@@ -628,7 +692,7 @@ class BacktestEngine:
         if mr_count >= max_mr:
             return
 
-        current_equity = self._current_equity(all_data, current_date)
+        current_equity = self._current_equity(all_data, current_date) if self.compounding else self.initial_capital
         held_symbols = {p["symbol"] for p in self.positions}
         entry_std = self.mr["entry_std"]
         vol_lb = min(self.mr["vol_lookback"], 5)
@@ -810,7 +874,7 @@ class BacktestEngine:
         confirmed.sort(key=lambda x: -x[0]["vcp_score"])
         failing.sort(key=lambda x: x[2])  # worst loss first
 
-        current_equity = self._current_equity(all_data, current_date)
+        current_equity = self._current_equity(all_data, current_date) if self.compounding else self.initial_capital
 
         for candidate, entry_price in confirmed:
             if not failing:
@@ -836,12 +900,14 @@ class BacktestEngine:
     def run(self, start_date: date, end_date: date, screen_interval_days: int = 5,
             preloaded_data: dict = None, preloaded_breadth: "pd.DataFrame | None" = None,
             precomputed_screens: dict = None, precomputed_mr: dict = None,
-            precomputed_mr_ind: dict = None) -> dict:
+            precomputed_mr_ind: dict = None, nifty_data: "pd.DataFrame | None" = None) -> dict:
         """Run the backtest over the given date range.
 
         Pass preloaded_data and preloaded_breadth to skip DB loading (for parameter sweeps).
         Pass precomputed_screens (dict of date -> candidates list) to skip VCP screening.
+        Pass nifty_data (DataFrame with 'close' and 'sma' columns) for Nifty-based regime detection.
         """
+        self.nifty_data = nifty_data
         if preloaded_data is not None:
             all_data = preloaded_data
             self.breadth_data = preloaded_breadth if preloaded_breadth is not None else self._precompute_breadth(all_data)
