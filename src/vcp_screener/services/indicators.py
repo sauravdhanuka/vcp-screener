@@ -99,6 +99,24 @@ def volume_ratio(volume: pd.Series, short: int = 10, long: int = 50) -> float:
     return short_avg / long_avg
 
 
+def rsi(close: pd.Series, period: int = 2) -> pd.Series:
+    """Relative Strength Index (default 2-period for mean reversion)."""
+    delta = close.diff()
+    gain = delta.where(delta > 0, 0.0)
+    loss = (-delta).where(delta < 0, 0.0)
+    avg_gain = gain.ewm(alpha=1 / period, min_periods=period).mean()
+    avg_loss = loss.ewm(alpha=1 / period, min_periods=period).mean()
+    rs = avg_gain / avg_loss.replace(0, np.nan)
+    return (100 - (100 / (1 + rs))).fillna(50)
+
+
+def internal_bar_strength(high: pd.Series, low: pd.Series, close: pd.Series) -> pd.Series:
+    """IBS = (Close - Low) / (High - Low). Values < 0.2 = closed near low (oversold)."""
+    range_ = high - low
+    ibs = (close - low) / range_.replace(0, np.nan)
+    return ibs.fillna(0.5)
+
+
 def atr(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> pd.Series:
     """Average True Range."""
     prev_close = close.shift(1)
