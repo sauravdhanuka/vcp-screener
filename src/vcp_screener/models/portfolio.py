@@ -25,4 +25,15 @@ class Position(Base):
     exit_reason: Mapped[str] = mapped_column(String(50), nullable=True)
     pnl: Mapped[float] = mapped_column(Float, nullable=True)
     pnl_pct: Mapped[float] = mapped_column(Float, nullable=True)
+    strategy: Mapped[str] = mapped_column(String(20), default="vcp")  # "vcp" or "mean_reversion"
+    pivot_price: Mapped[float] = mapped_column(Float, nullable=True)  # For failed breakout detection
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class EquitySnapshot(Base):
+    """Daily portfolio equity for equity curve MA calculation."""
+    __tablename__ = "equity_snapshots"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    date: Mapped[date] = mapped_column(Date, unique=True, index=True)
+    equity: Mapped[float] = mapped_column(Float)

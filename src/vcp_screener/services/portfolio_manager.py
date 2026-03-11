@@ -3,10 +3,13 @@
 import logging
 from datetime import date, datetime
 
+import pandas as pd
+
 from vcp_screener.config import settings
 from vcp_screener.db import get_session, init_db
-from vcp_screener.models.portfolio import Position
+from vcp_screener.models.portfolio import Position, EquitySnapshot
 from vcp_screener.services.screener import load_price_data
+from vcp_screener.services.indicators import rsi as compute_rsi
 
 logger = logging.getLogger(__name__)
 
@@ -36,15 +39,18 @@ def buy_stock(
     stop_loss_price: float = None,
     shares: int = None,
     entry_date: date = None,
+    strategy: str = "vcp",
+    pivot_price: float = None,
 ) -> Position | None:
     """Record a new buy position."""
     init_db()
     session = get_session()
     try:
-        # Check max positions
+        # Check max positions (equity curve MA may reduce this)
+        effective_max = get_effective_max_positions()
         open_count = session.query(Position).filter(Position.is_open == True).count()
-        if open_count >= settings.max_positions:
-            logger.warning(f"Max positions ({settings.max_positions}) reached. Cannot buy {symbol}.")
+        if open_count >= effective_max:
+            logger.warning(f"Max positions ({effective_max}) reached. Cannot buy {symbol}.")
             return None
 
         # Default stop loss
@@ -67,6 +73,8 @@ def buy_stock(
             stop_loss=stop_loss_price,
             highest_price=entry_price,
             is_open=True,
+            strategy=strategy,
+            pivot_price=pivot_price,
         )
         session.add(position)
         session.commit()
@@ -147,7 +155,12 @@ def update_trailing_stops():
 
 
 def check_sell_alerts() -> list[dict]:
-    """Check all open positions for sell conditions."""
+    """Check all open positions for sell conditions.
+
+    Matches backtester logic:
+    - VCP positions: stops, trailing stops, climax tops, failed breakouts, protect 20% gain
+    - MR positions: 5% stop, RSI(2) > 65 exit, SMA(10) target, 15-day timeout
+    """
     session = get_session()
     alerts = []
     try:
@@ -157,7 +170,50 @@ def check_sell_alerts() -> list[dict]:
             if df.empty:
                 continue
 
-            current_price = df["close"].iloc[-1]
+            current_price = float(df["close"].iloc[-1])
+            hold_days = (datetime.now().date() - pos.entry_date).days
+
+            # --- Mean Reversion exits (separate logic, matches backtester) ---
+            if pos.strategy == "mean_reversion":
+                alert = {
+                    "position_id": pos.id,
+                    "symbol": pos.symbol,
+                    "strategy": "mean_reversion",
+                    "entry_price": pos.entry_price,
+                    "current_price": current_price,
+                    "gain_pct": (current_price / pos.entry_price - 1) * 100,
+                    "hold_days": hold_days,
+                    "stop_loss": pos.stop_loss,
+                    "alerts": [],
+                }
+
+                # MR stop loss (5%)
+                if current_price <= pos.stop_loss:
+                    alert["alerts"].append("MR_STOP_HIT")
+
+                # RSI-based exit (sell on strength, RSI(2) > 65)
+                if len(df) >= 3:
+                    rsi_val = float(compute_rsi(df["close"], period=2).iloc[-1])
+                    if rsi_val > 65:
+                        alert["alerts"].append("MR_RSI_EXIT")
+                        alert["rsi_2"] = round(rsi_val, 1)
+
+                # SMA(10) target reached
+                if len(df) >= 10:
+                    sma_10 = float(df["close"].rolling(10).mean().iloc[-1])
+                    if current_price >= sma_10:
+                        alert["alerts"].append("MR_TARGET_HIT")
+                        alert["sma_10"] = round(sma_10, 2)
+
+                # 15-day timeout
+                if hold_days >= 15:
+                    alert["alerts"].append("MR_TIMEOUT")
+
+                if alert["alerts"]:
+                    alerts.append(alert)
+                continue  # Skip VCP exit logic for MR positions
+
+            # --- VCP exits (matches backtester _check_stops) ---
             effective_stop = max(
                 pos.stop_loss,
                 pos.trailing_stop or 0,
@@ -166,9 +222,11 @@ def check_sell_alerts() -> list[dict]:
             alert = {
                 "position_id": pos.id,
                 "symbol": pos.symbol,
+                "strategy": "vcp",
                 "entry_price": pos.entry_price,
-                "current_price": float(current_price),
+                "current_price": current_price,
                 "gain_pct": (current_price / pos.entry_price - 1) * 100,
+                "hold_days": hold_days,
                 "stop_loss": pos.stop_loss,
                 "trailing_stop": pos.trailing_stop,
                 "effective_stop": effective_stop,
@@ -190,23 +248,26 @@ def check_sell_alerts() -> list[dict]:
                 daily_volume = df["volume"].iloc[-1]
                 avg_vol = df["volume"].iloc[-50:].mean() if len(df) >= 50 else df["volume"].mean()
 
-                # Largest daily decline (>= 4% down on high volume)
+                # High Volume Decline (>= 4% down on high volume)
                 if daily_change_pct <= -4 and daily_volume > avg_vol * 1.5:
                     alert["alerts"].append("HIGH_VOL_DECLINE")
 
                 # Exhaustion gap (gap up but close near low)
-                if len(df) >= 2:
-                    today_open = df["open"].iloc[-1]
-                    today_low = df["low"].iloc[-1]
-                    today_high = df["high"].iloc[-1]
-                    if (today_open > prev_close * 1.02 and
-                            (today_high - current_price) > (current_price - today_low) * 2):
-                        alert["alerts"].append("EXHAUSTION_GAP")
+                today_open = df["open"].iloc[-1]
+                today_low = df["low"].iloc[-1]
+                today_high = df["high"].iloc[-1]
+                if (today_open > prev_close * 1.02 and
+                        (today_high - current_price) > (current_price - today_low) * 2):
+                    alert["alerts"].append("EXHAUSTION_GAP")
 
             # Never let a 20%+ gain become a loss
             if (pos.highest_price / pos.entry_price - 1) >= 0.20:
                 if current_price <= pos.entry_price:
                     alert["alerts"].append("PROTECT_20PCT_GAIN")
+
+            # Failed Breakout: price falls 3% below pivot after entry
+            if pos.pivot_price and current_price < pos.pivot_price * 0.97:
+                alert["alerts"].append("FAILED_BREAKOUT")
 
             if alert["alerts"]:
                 alerts.append(alert)
@@ -229,6 +290,7 @@ def get_holdings() -> list[dict]:
             holdings.append({
                 "id": pos.id,
                 "symbol": pos.symbol,
+                "strategy": pos.strategy or "vcp",
                 "entry_date": pos.entry_date,
                 "entry_price": pos.entry_price,
                 "shares": pos.shares,
@@ -268,5 +330,83 @@ def get_closed_trades() -> list[dict]:
             "pnl": p.pnl,
             "pnl_pct": p.pnl_pct,
         } for p in positions]
+    finally:
+        session.close()
+
+
+def save_equity_snapshot():
+    """Save today's portfolio equity for equity curve MA calculation.
+
+    Call this daily (e.g., after market close) to build the equity time series.
+    Equity = cash (account_size - sum of open position costs) + sum of open position market values.
+    """
+    session = get_session()
+    try:
+        today = datetime.now().date()
+
+        # Check if snapshot already exists for today
+        existing = session.query(EquitySnapshot).filter(EquitySnapshot.date == today).first()
+
+        # Calculate current equity
+        positions = session.query(Position).filter(Position.is_open == True).all()
+        total_invested = 0.0
+        total_market_value = 0.0
+        for pos in positions:
+            total_invested += pos.entry_price * pos.shares
+            df = load_price_data(pos.symbol)
+            if not df.empty:
+                current_price = float(df["close"].iloc[-1])
+                total_market_value += current_price * pos.shares
+            else:
+                total_market_value += pos.entry_price * pos.shares
+
+        # Add realized P&L from closed trades
+        closed_pnl = session.query(Position).filter(Position.is_open == False).all()
+        realized_pnl = sum(p.pnl or 0 for p in closed_pnl)
+
+        equity = settings.account_size + realized_pnl + (total_market_value - total_invested)
+
+        if existing:
+            existing.equity = equity
+        else:
+            session.add(EquitySnapshot(date=today, equity=equity))
+        session.commit()
+        logger.info(f"Equity snapshot: Rs {equity:,.0f}")
+    finally:
+        session.close()
+
+
+def get_effective_max_positions() -> int:
+    """Get effective max positions considering equity curve MA (matches backtester).
+
+    If current equity < 40-day MA of equity, reduce max positions to 3.
+    """
+    eq_ma_days = 40
+    dd_max_positions = 3
+
+    session = get_session()
+    try:
+        snapshots = (
+            session.query(EquitySnapshot)
+            .order_by(EquitySnapshot.date.desc())
+            .limit(eq_ma_days)
+            .all()
+        )
+
+        if len(snapshots) < eq_ma_days:
+            return settings.max_positions  # Not enough data, use default
+
+        equity_values = [s.equity for s in snapshots]
+        equity_ma = sum(equity_values) / len(equity_values)
+        current_equity = equity_values[0]  # Most recent
+
+        if current_equity < equity_ma:
+            logger.info(
+                f"Equity curve MA protection: equity Rs {current_equity:,.0f} < "
+                f"MA({eq_ma_days}) Rs {equity_ma:,.0f}. Max positions reduced to {dd_max_positions}."
+            )
+            return dd_max_positions
+
+        return settings.max_positions
     finally:
         session.close()

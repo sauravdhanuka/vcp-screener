@@ -4,11 +4,12 @@ import streamlit as st
 
 from vcp_screener.db import init_db, get_session
 from vcp_screener.models.screening_result import ScreeningResult
-from vcp_screener.services.screener import get_buy_signals, run_screening
+from vcp_screener.services.screener import get_buy_signals, get_mr_signals, run_screening
 from vcp_screener.services.data_fetcher import (
     fetch_nse_stock_list, save_stock_list, download_ohlcv,
     get_active_symbols, update_prices,
 )
+from vcp_screener.services.portfolio_manager import save_equity_snapshot
 
 
 def _has_screening_data() -> bool:
@@ -54,8 +55,10 @@ def _update_and_screen(period: str = "10d"):
     download_ohlcv(symbols, period=period, progress_callback=on_progress,
                    batch_size=100, batch_delay=0.5)
 
-    progress.progress(92, text="Running VCP screening...")
+    progress.progress(90, text="Running VCP screening...")
     run_screening()
+    progress.progress(95, text="Saving equity snapshot...")
+    save_equity_snapshot()
     progress.progress(100, text="Done!")
 
 
@@ -238,3 +241,34 @@ def render():
         f"{len(groups['BUY'])} BUY · {len(groups['WATCH_VOLUME'])} Watch · "
         f"{len(groups['NEAR_PIVOT'])} Near Pivot · {len(groups['FORMING'])} Forming"
     )
+
+    # --- Mean Reversion Signals (only in BEARISH regime) ---
+    if regime == "BEARISH":
+        st.markdown("---")
+        st.subheader("Mean Reversion Signals")
+        st.caption("Active in BEARISH regime — oversold bounce candidates")
+
+        if "mr_signals" not in st.session_state:
+            with st.spinner("Scanning for MR candidates..."):
+                mr_signals = get_mr_signals()
+            st.session_state["mr_signals"] = mr_signals
+
+        mr_signals = st.session_state.get("mr_signals", [])
+
+        if not mr_signals:
+            st.info("No mean reversion candidates found.")
+        else:
+            st.markdown(
+                f'<div style="background-color:#4a1a5c;padding:4px 12px;border-radius:6px;'
+                f'margin:8px 0"><b>MR BUY ({len(mr_signals)})</b> — Oversold bounce candidates</div>',
+                unsafe_allow_html=True,
+            )
+            for mr in mr_signals:
+                st.markdown(
+                    f"**{mr['symbol']}** — RSI(2) {mr['rsi_2']:.1f} | IBS {mr['ibs']:.2f} | "
+                    f"Z-Score {mr['z_score']:.1f}  \n"
+                    f"Entry ₹{mr['entry_price']:,.0f} · Stop ₹{mr['stop_price']:,.0f} · "
+                    f"Target ₹{mr['target_price']:,.0f} · {mr['shares']} shares  \n"
+                    f"_{mr['reason']}_"
+                )
+                st.divider()
