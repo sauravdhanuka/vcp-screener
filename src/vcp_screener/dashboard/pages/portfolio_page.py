@@ -10,32 +10,43 @@ from vcp_screener.services.portfolio_manager import (
 )
 
 
+@st.cache_data(ttl=120, show_spinner=False)
+def _load_holdings():
+    return get_holdings()
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def _load_alerts():
+    update_trailing_stops()
+    return check_sell_alerts()
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def _load_history():
+    return get_closed_trades()
+
+
 def render():
-    tab_hold, tab_alerts, tab_history, tab_buy = st.tabs([
-        "Holdings", "Sell Alerts", "Trade History", "New Position",
-    ])
+    view = st.radio("", ["Holdings", "Sell Alerts", "Trade History", "New Position"],
+                    horizontal=True, label_visibility="collapsed")
 
-    with tab_hold:
+    if view == "Holdings":
         _render_holdings()
-
-    with tab_alerts:
+    elif view == "Sell Alerts":
         _render_alerts()
-
-    with tab_history:
+    elif view == "Trade History":
         _render_history()
-
-    with tab_buy:
+    else:
         _render_buy_form()
 
 
 def _render_holdings():
-    holdings = get_holdings()
+    holdings = _load_holdings()
 
     if not holdings:
         st.info("No open positions.")
         return
 
-    # Summary metrics
     total_cost = sum(h["cost"] for h in holdings)
     total_value = sum(h["market_value"] for h in holdings)
     total_pnl = total_value - total_cost
@@ -51,7 +62,6 @@ def _render_holdings():
 
     st.markdown("")
 
-    # Holdings cards
     for h in holdings:
         pnl_color = "#2ea043" if h["pnl"] >= 0 else "#f85149"
         strategy_badge = "MR" if h.get("strategy") == "mean_reversion" else "VCP"
@@ -66,7 +76,7 @@ def _render_holdings():
                 f'padding:1px 8px;border-radius:8px;font-size:0.7rem;font-weight:600">'
                 f'{strategy_badge}</span> &nbsp;'
                 f'**{h["symbol"]}** &nbsp; '
-                f'<span style="color:#8b949e">{h["shares"]} shares @ ₹{h["entry_price"]:,.1f} · '
+                f'<span style="color:#8b949e">{h["shares"]} @ ₹{h["entry_price"]:,.1f} · '
                 f'{h["entry_date"]}</span>',
                 unsafe_allow_html=True,
             )
@@ -84,15 +94,17 @@ def _render_holdings():
             if st.button("Sell", key=f"sell_{h['id']}", type="secondary", use_container_width=True):
                 pos = sell_stock(h["id"], h["current_price"])
                 if pos:
-                    st.toast(f"Sold {pos.symbol} @ ₹{pos.exit_price:,.1f} — P&L: ₹{pos.pnl:+,.0f}")
+                    _load_holdings.clear()
+                    _load_alerts.clear()
+                    _load_history.clear()
+                    st.toast(f"Sold {pos.symbol} — P&L: ₹{pos.pnl:+,.0f}")
                     st.rerun()
 
         st.markdown("<hr style='margin:2px 0;border-color:#21262d'>", unsafe_allow_html=True)
 
 
 def _render_alerts():
-    update_trailing_stops()
-    alerts = check_sell_alerts()
+    alerts = _load_alerts()
 
     if not alerts:
         st.markdown(
@@ -131,7 +143,7 @@ def _render_alerts():
 
 
 def _render_history():
-    trades = get_closed_trades()
+    trades = _load_history()
 
     if not trades:
         st.info("No closed trades yet.")
@@ -151,9 +163,7 @@ def _render_history():
     df = df[[c for c in display_cols if c in df.columns]]
 
     st.dataframe(
-        df,
-        hide_index=True,
-        use_container_width=True,
+        df, hide_index=True, use_container_width=True,
         column_config={
             "entry_price": st.column_config.NumberColumn("Entry", format="₹%.1f"),
             "exit_price": st.column_config.NumberColumn("Exit", format="₹%.1f"),
@@ -180,14 +190,14 @@ def _render_buy_form():
     if st.button("Buy", type="primary"):
         if buy_symbol and buy_entry > 0:
             pos = buy_stock(
-                symbol=buy_symbol,
-                entry_price=buy_entry,
+                symbol=buy_symbol, entry_price=buy_entry,
                 stop_loss_price=buy_stop if buy_stop > 0 else None,
                 shares=buy_shares if buy_shares > 0 else None,
                 strategy=buy_strategy,
                 pivot_price=buy_pivot if buy_pivot > 0 else None,
             )
             if pos:
+                _load_holdings.clear()
                 st.success(f"Bought {pos.shares} shares of {pos.symbol} @ ₹{pos.entry_price:,.1f}")
                 st.rerun()
             else:

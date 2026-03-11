@@ -3,26 +3,50 @@
 import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import pandas as pd
 
 from vcp_screener.db import init_db
 from vcp_screener.services.market_regime import detect_market_regime, get_nifty_data
 from vcp_screener.services.indicators import sma
 
 
+@st.cache_data(ttl=600, show_spinner="Loading Nifty data...")
+def _load_market_data():
+    """Fetch Nifty data + regime. Cached 10 min."""
+    nifty = get_nifty_data(period="2y")
+    regime = detect_market_regime(nifty)
+
+    # Convert to serializable format for caching
+    nifty_dict = None
+    if not nifty.empty:
+        close = nifty["Close"].squeeze()
+        sma_50 = sma(close, 50)
+        sma_200 = sma(close, 200)
+
+        vol = nifty["Volume"].squeeze() if "Volume" in nifty.columns else pd.Series(dtype=float)
+
+        nifty_dict = {
+            "dates": close.index.tolist(),
+            "close": close.values.tolist(),
+            "sma_50": sma_50.values.tolist(),
+            "sma_200": sma_200.values.tolist(),
+            "volume": vol.values.tolist() if len(vol) > 0 else [],
+        }
+
+    return regime, nifty_dict
+
+
 def render():
     init_db()
 
-    with st.spinner("Loading market data..."):
-        nifty = get_nifty_data(period="2y")
-        regime = detect_market_regime(nifty)
-
+    regime, nifty_dict = _load_market_data()
     regime_name = regime["regime"]
 
     if regime_name == "UNKNOWN":
         st.warning("Could not determine market regime. Check internet connectivity.")
         return
 
-    # ── Regime + Metrics ──
+    # Regime banner
     regime_styles = {
         "BULLISH": ("#1a472a", "#2ea043", "Full position sizes — best conditions for VCP entries"),
         "CAUTIOUS": ("#5c4a1e", "#d29922", "Reduce position sizes — be selective, top 10-15 only"),
@@ -38,11 +62,10 @@ def render():
         unsafe_allow_html=True,
     )
 
-    # Method-specific info
     if regime.get("method") == "breadth":
         m1, m2, m3 = st.columns(3)
         m1.metric("Breadth", f"{regime['breadth_pct']:.1f}%")
-        m2.metric("Bull Threshold", f"≥ {regime['bull_threshold']}%")
+        m2.metric("Bull Threshold", f">= {regime['bull_threshold']}%")
         m3.metric("Bear Threshold", f"< {regime['bear_threshold']}%")
     else:
         m1, m2, m3, m4 = st.columns(4)
@@ -53,61 +76,55 @@ def render():
                   delta="Above" if regime["above_200sma"] else "Below")
         m4.metric("Regime", regime_name)
 
-    # ── Nifty Chart ──
-    if not nifty.empty:
-        # Timeframe selector
+    # Chart
+    if nifty_dict:
         tf = st.radio("Timeframe", ["3M", "6M", "1Y", "2Y"], horizontal=True, index=2)
         tf_days = {"3M": 63, "6M": 126, "1Y": 252, "2Y": 504}
-        chart_data = nifty.tail(tf_days.get(tf, 252))
+        n = tf_days.get(tf, 252)
 
-        close = chart_data["Close"].squeeze()
+        dates = nifty_dict["dates"][-n:]
+        close = nifty_dict["close"][-n:]
+        sma_50 = nifty_dict["sma_50"][-n:]
+        sma_200 = nifty_dict["sma_200"][-n:]
+        volume = nifty_dict["volume"][-n:] if nifty_dict["volume"] else []
 
-        fig = make_subplots(
-            rows=2, cols=1, shared_xaxes=True,
-            vertical_spacing=0.03, row_heights=[0.75, 0.25],
-        )
+        fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
+                            vertical_spacing=0.03, row_heights=[0.75, 0.25])
 
-        # Price line
         fig.add_trace(go.Scatter(
-            x=close.index, y=close.values, name="Nifty 50",
+            x=dates, y=close, name="Nifty 50",
             line=dict(color="#58a6ff", width=2),
             fill="tozeroy", fillcolor="rgba(88,166,255,0.05)",
         ), row=1, col=1)
 
-        # SMAs
-        for period, color, dash in [(50, "#ff7b72", None), (200, "#7ee787", "dot")]:
-            sma_vals = sma(nifty["Close"].squeeze(), period)
-            sma_sliced = sma_vals[sma_vals.index.isin(chart_data.index)]
-            fig.add_trace(go.Scatter(
-                x=sma_sliced.index, y=sma_sliced.values, name=f"SMA {period}",
-                line=dict(width=1.5, color=color, dash=dash),
-            ), row=1, col=1)
+        fig.add_trace(go.Scatter(
+            x=dates, y=sma_50, name="SMA 50",
+            line=dict(width=1.5, color="#ff7b72"),
+        ), row=1, col=1)
 
-        # Volume
-        if "Volume" in chart_data.columns:
-            vol = chart_data["Volume"].squeeze()
+        fig.add_trace(go.Scatter(
+            x=dates, y=sma_200, name="SMA 200",
+            line=dict(width=1.5, color="#7ee787", dash="dot"),
+        ), row=1, col=1)
+
+        if volume:
             fig.add_trace(go.Bar(
-                x=vol.index, y=vol.values, name="Volume",
+                x=dates, y=volume, name="Volume",
                 marker_color="rgba(88,166,255,0.3)",
             ), row=2, col=1)
 
         fig.update_layout(
-            height=550,
-            template="plotly_dark",
+            height=550, template="plotly_dark",
             margin=dict(t=10, b=10, l=10, r=10),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font_size=10),
-            plot_bgcolor="#0d1117",
-            paper_bgcolor="#0d1117",
+            plot_bgcolor="#0d1117", paper_bgcolor="#0d1117",
             xaxis_rangeslider_visible=False,
         )
         fig.update_xaxes(gridcolor="#21262d", zeroline=False)
         fig.update_yaxes(gridcolor="#21262d", zeroline=False)
-        fig.update_yaxes(title_text="Price", row=1, col=1)
-        fig.update_yaxes(title_text="Volume", row=2, col=1)
 
         st.plotly_chart(fig, use_container_width=True)
 
-    # ── Trading Rules ──
     with st.expander("Trading Rules by Regime"):
         st.markdown("""
 | Regime | VCP Entries | MR Entries | Position Size | Max Positions |
@@ -117,6 +134,6 @@ def render():
 | **BEARISH** | Disabled | Active | MR: 1.5% risk | 3 MR positions |
 
 **Regime Detection**: Primary = Market breadth (% stocks > 50-day SMA).
-Bull ≥ 55%, Bear < 35%, Cautious in between.
+Bull >= 55%, Bear < 35%, Cautious in between.
 Fallback = Nifty 50 vs 50/200-day SMA.
         """)
