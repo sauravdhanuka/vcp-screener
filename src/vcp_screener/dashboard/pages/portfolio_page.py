@@ -101,10 +101,14 @@ def _render_alerts():
     else:
         for a in alerts:
             alert_types = ", ".join(a["alerts"])
-            color = "🔴" if any(x in alert_types for x in ["STOP", "PROTECT"]) else "🟡"
-            st.warning(f"{color} **{a['symbol']}** (#{a['position_id']}): {alert_types}\n\n"
+            strategy = a.get("strategy", "vcp")
+            color = "🔴" if any(x in alert_types for x in ["STOP", "PROTECT", "FAILED"]) else "🟡"
+            stop_display = a.get("effective_stop", a.get("stop_loss", 0))
+            label = f"[MR] " if strategy == "mean_reversion" else ""
+            st.warning(f"{color} {label}**{a['symbol']}** (#{a['position_id']}): {alert_types}\n\n"
                        f"Entry: ₹{a['entry_price']:,.1f} | Current: ₹{a['current_price']:,.1f} | "
-                       f"Gain: {a['gain_pct']:+.1f}% | Stop: ₹{a['effective_stop']:,.1f}")
+                       f"Gain: {a['gain_pct']:+.1f}% | Stop: ₹{stop_display:,.1f} | "
+                       f"Hold: {a.get('hold_days', 0)}d")
 
 
 def _render_history():

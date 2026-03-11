@@ -14,7 +14,10 @@ from vcp_screener.db import get_session, init_db
 from vcp_screener.models.daily_price import DailyPrice
 from vcp_screener.models.stock import Stock
 from vcp_screener.models.screening_result import ScreeningResult
-from vcp_screener.services.indicators import compute_rs_raw, compute_rs_percentiles, average_volume
+from vcp_screener.services.indicators import (
+    compute_rs_raw, compute_rs_percentiles, average_volume,
+    rsi, internal_bar_strength, sma,
+)
 from vcp_screener.services.trend_template import check_trend_template
 from vcp_screener.services.vcp_detector import detect_contractions, score_vcp
 from vcp_screener.services.market_regime import detect_market_regime
@@ -145,8 +148,8 @@ def run_screening(save_results: bool = True) -> list[dict]:
                 "ud_ratio": float(vcp_result.get("ud_ratio", 1.0)) if vcp_result.get("ud_ratio") is not None else None,
             })
 
-        # Step 5: Market regime
-        regime = detect_market_regime()
+        # Step 5: Market regime (breadth-based, matches backtester)
+        regime = detect_market_regime(price_cache=price_cache)
 
         # Step 6: Sort and rank
         candidates.sort(key=lambda x: (-x["vcp_score"], -x["rs_percentile"]))
@@ -356,5 +359,111 @@ def get_stock_detail(symbol: str) -> dict | None:
             "vcp_score": vcp_sc,
             "price_data": df,
         }
+    finally:
+        session.close()
+
+
+def get_mr_signals() -> list[dict]:
+    """Screen for Mean Reversion candidates (matching backtester logic).
+
+    MR entry conditions (all must be true):
+    1. Price < SMA(20) - 1.5 * StdDev(20)  (below lower Bollinger Band)
+    2. RSI(2) < 5                           (extreme oversold)
+    3. IBS < 0.2                            (closed near day's low)
+    4. Volume > 1.5x 50-day average         (panic volume)
+    5. Price >= min_price                    (no penny stocks)
+
+    Returns list of MR candidates with entry/stop/target recommendations.
+    """
+    init_db()
+    session = get_session()
+    try:
+        symbols = [
+            s[0] for s in
+            session.query(Stock.symbol).filter(Stock.is_active == True).all()
+        ]
+
+        # MR parameters (match backtester defaults)
+        entry_std = 1.5
+        rsi_entry = 5
+        ibs_entry = 0.2
+        stop_pct = 5
+        risk_pct = 1.5
+
+        candidates = []
+        for symbol in symbols:
+            df = load_price_data(symbol, session)
+            if df.empty or len(df) < 50:
+                continue
+
+            close = df["close"]
+            current_price = float(close.iloc[-1])
+
+            if current_price < settings.min_price:
+                continue
+
+            # SMA(20) and StdDev(20)
+            sma_20 = float(close.rolling(20).mean().iloc[-1])
+            std_20 = float(close.rolling(20).std().iloc[-1])
+            if pd.isna(sma_20) or pd.isna(std_20) or std_20 <= 0:
+                continue
+
+            # Entry condition 1: below lower Bollinger Band
+            if current_price >= sma_20 - entry_std * std_20:
+                continue
+
+            # Entry condition 4: volume spike
+            avg_vol = float(df["volume"].iloc[-50:].mean())
+            today_vol = float(df["volume"].iloc[-1])
+            if avg_vol <= 0 or today_vol <= avg_vol * 1.5:
+                continue
+
+            # Entry condition 2: RSI(2) < 5
+            rsi_val = float(rsi(close, period=2).iloc[-1])
+            if rsi_val >= rsi_entry:
+                continue
+
+            # Entry condition 3: IBS < 0.2
+            ibs_val = float(internal_bar_strength(df["high"], df["low"], close).iloc[-1])
+            if ibs_val >= ibs_entry:
+                continue
+
+            # Z-score for ranking (more negative = more oversold)
+            z_score = (current_price - sma_20) / std_20
+
+            # Calculate SMA(10) target
+            sma_10 = float(close.rolling(10).mean().iloc[-1])
+
+            # Position sizing
+            entry_price = current_price
+            stop_price = entry_price * (1 - stop_pct / 100)
+            risk_amount = settings.account_size * (risk_pct / 100)
+            risk_per_share = entry_price - stop_price
+            shares = int(risk_amount / risk_per_share) if risk_per_share > 0 else 0
+
+            candidates.append({
+                "symbol": symbol,
+                "close": current_price,
+                "sma_20": round(sma_20, 2),
+                "sma_10": round(sma_10, 2),
+                "std_20": round(std_20, 2),
+                "rsi_2": round(rsi_val, 1),
+                "ibs": round(ibs_val, 3),
+                "z_score": round(z_score, 2),
+                "volume_ratio": round(today_vol / avg_vol, 1),
+                "entry_price": round(entry_price, 2),
+                "stop_price": round(stop_price, 2),
+                "target_price": round(sma_10, 2),
+                "shares": shares,
+                "cost": round(shares * entry_price, 0),
+                "signal": "MR_BUY",
+                "strategy": "mean_reversion",
+                "reason": f"Oversold: RSI(2)={rsi_val:.1f}, IBS={ibs_val:.2f}, Z={z_score:.1f}, Target SMA10=₹{sma_10:,.0f}",
+            })
+
+        # Sort by z_score (most oversold first)
+        candidates.sort(key=lambda x: x["z_score"])
+        return candidates[:10]  # Top 10 MR candidates
+
     finally:
         session.close()
