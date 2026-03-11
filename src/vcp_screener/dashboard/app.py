@@ -1,4 +1,4 @@
-"""Streamlit dashboard entry point — professional multi-tab layout."""
+"""Streamlit dashboard entry point — professional layout with single-page rendering."""
 
 import streamlit as st
 
@@ -6,43 +6,17 @@ st.set_page_config(
     page_title="VCP Screener",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
-# ── Custom CSS for professional look ──
+# ── Custom CSS ──
 st.markdown("""
 <style>
-/* Hide default streamlit branding */
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 header {visibility: hidden;}
+.block-container { padding-top: 1rem; padding-bottom: 0rem; }
 
-/* Tighter spacing */
-.block-container {
-    padding-top: 1rem;
-    padding-bottom: 0rem;
-}
-
-/* Tab styling */
-.stTabs [data-baseweb="tab-list"] {
-    gap: 0px;
-    background-color: #0e1117;
-    border-bottom: 2px solid #1e2430;
-    padding: 0 1rem;
-}
-.stTabs [data-baseweb="tab"] {
-    padding: 10px 24px;
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: #8b949e;
-    border-bottom: 3px solid transparent;
-}
-.stTabs [aria-selected="true"] {
-    color: #58a6ff;
-    border-bottom: 3px solid #58a6ff;
-}
-
-/* Metric cards */
 [data-testid="stMetric"] {
     background-color: #161b22;
     border: 1px solid #21262d;
@@ -50,94 +24,62 @@ header {visibility: hidden;}
     padding: 12px 16px;
 }
 [data-testid="stMetricLabel"] {
-    font-size: 0.75rem;
-    color: #8b949e;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-size: 0.75rem; color: #8b949e;
+    text-transform: uppercase; letter-spacing: 0.05em;
 }
+[data-testid="stDataFrame"] { border: 1px solid #21262d; border-radius: 8px; }
+.stButton > button { border-radius: 6px; font-weight: 600; }
+hr { border-color: #21262d; }
 
-/* Dataframe styling */
-[data-testid="stDataFrame"] {
-    border: 1px solid #21262d;
-    border-radius: 8px;
-}
-
-/* Buttons */
-.stButton > button {
-    border-radius: 6px;
-    font-weight: 600;
-}
-
-/* Expander styling */
-.streamlit-expanderHeader {
-    font-weight: 600;
-    font-size: 0.9rem;
-}
-
-/* Divider styling */
-hr {
-    border-color: #21262d;
-}
+/* Sidebar nav styling */
+[data-testid="stSidebar"] [data-testid="stRadio"] > label { font-weight: 600; }
 </style>
 """, unsafe_allow_html=True)
 
 from vcp_screener.db import init_db
 init_db()
 
-# Import pages
-from vcp_screener.dashboard.pages import (
-    screener_page,
-    signals_page,
-    portfolio_page,
-    watchlist_page,
-    market_page,
+# ── Sidebar navigation (only active page renders) ──
+st.sidebar.markdown("### VCP Screener")
+
+page = st.sidebar.radio(
+    "Navigate",
+    ["Screener", "Signals", "Portfolio", "Watchlist", "Market"],
+    label_visibility="collapsed",
 )
 
-# ── Header bar ──
-hcol1, hcol2 = st.columns([3, 1])
-with hcol1:
-    st.markdown("### VCP Screener")
-with hcol2:
-    # Data status
+st.sidebar.markdown("---")
+
+# Data status
+try:
+    from vcp_screener.db import get_session
+    from vcp_screener.models.screening_result import ScreeningResult
+    from vcp_screener.models.stock import Stock
+    from sqlalchemy import func
+
+    session = get_session()
     try:
-        from vcp_screener.db import get_session
-        from vcp_screener.models.screening_result import ScreeningResult
-        from vcp_screener.models.stock import Stock
-        from sqlalchemy import func
+        stock_count = session.query(func.count(Stock.symbol)).filter(Stock.is_active == True).scalar() or 0
+        last_screen = session.query(func.max(ScreeningResult.run_date)).scalar()
+        st.sidebar.caption(f"{stock_count:,} stocks · Last screen: {last_screen or 'Never'}")
+    finally:
+        session.close()
+except Exception:
+    pass
 
-        session = get_session()
-        try:
-            stock_count = session.query(func.count(Stock.symbol)).filter(Stock.is_active == True).scalar() or 0
-            last_screen = session.query(func.max(ScreeningResult.run_date)).scalar()
-            status = f"{stock_count:,} stocks"
-            if last_screen:
-                status += f" · Screened: {last_screen}"
-            st.caption(status)
-        finally:
-            session.close()
-    except Exception:
-        pass
-
-# ── Main tabs ──
-tab_screener, tab_signals, tab_portfolio, tab_watchlist, tab_market = st.tabs([
-    "Screener",
-    "Signals",
-    "Portfolio",
-    "Watchlist",
-    "Market",
-])
-
-with tab_screener:
+# ── Render only the active page ──
+if page == "Screener":
+    from vcp_screener.dashboard.pages import screener_page
     screener_page.render()
-
-with tab_signals:
+elif page == "Signals":
+    from vcp_screener.dashboard.pages import signals_page
     signals_page.render()
-
-with tab_portfolio:
+elif page == "Portfolio":
+    from vcp_screener.dashboard.pages import portfolio_page
     portfolio_page.render()
-
-with tab_watchlist:
+elif page == "Watchlist":
+    from vcp_screener.dashboard.pages import watchlist_page
     watchlist_page.render()
-
-with tab_market:
+elif page == "Market":
+    from vcp_screener.dashboard.pages import market_page
     market_page.render()
