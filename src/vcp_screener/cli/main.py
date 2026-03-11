@@ -224,6 +224,75 @@ def screen_signals():
         ))
 
 
+@screen.command("mr")
+def screen_mr():
+    """Screen for Mean Reversion candidates (oversold bounces)."""
+    from vcp_screener.services.screener import get_mr_signals
+    from vcp_screener.services.market_regime import detect_market_regime
+
+    console.print("[bold]Running Mean Reversion screening...[/]")
+
+    # Show regime
+    regime = detect_market_regime()
+    regime_color = {"BULLISH": "green", "CAUTIOUS": "yellow", "BEARISH": "red"}.get(regime["regime"], "white")
+    console.print(Panel(
+        f"Market Regime: [{regime_color}]{regime['regime']}[/]  |  "
+        f"MR works best in BEARISH markets but signals are shown regardless.",
+        title="Market Status",
+    ))
+
+    signals = get_mr_signals()
+
+    if not signals:
+        console.print("[yellow]No MR candidates found. Conditions: RSI(2)<5, IBS<0.2, below Bollinger, high volume.[/]")
+        return
+
+    console.print(f"\n[bold magenta]Mean Reversion Candidates ({len(signals)} found)[/]")
+
+    table = Table(title="MR Buy Signals — Oversold Bounce Candidates", show_lines=True)
+    table.add_column("#", style="dim", width=4)
+    table.add_column("Symbol", style="magenta bold", width=12)
+    table.add_column("Close", justify="right", width=10)
+    table.add_column("RSI(2)", justify="right", width=8)
+    table.add_column("IBS", justify="right", width=7)
+    table.add_column("Z-Score", justify="right", width=8)
+    table.add_column("Vol Ratio", justify="right", width=9)
+    table.add_column("Entry", justify="right", width=10)
+    table.add_column("Stop", justify="right", width=10)
+    table.add_column("Target", justify="right", width=10)
+    table.add_column("Shares", justify="right", width=7)
+    table.add_column("Cost", justify="right", width=10)
+
+    for i, s in enumerate(signals, 1):
+        table.add_row(
+            str(i),
+            s["symbol"],
+            f"₹{s['close']:,.1f}",
+            f"[red]{s['rsi_2']:.1f}[/]",
+            f"[red]{s['ibs']:.2f}[/]",
+            f"[red]{s['z_score']:.1f}[/]",
+            f"{s['volume_ratio']:.1f}x",
+            f"₹{s['entry_price']:,.1f}",
+            f"₹{s['stop_price']:,.1f}",
+            f"[green]₹{s['target_price']:,.1f}[/]",
+            str(s["shares"]),
+            f"₹{s['cost']:,.0f}",
+        )
+
+    console.print(table)
+
+    # Suggested commands
+    if signals:
+        console.print(Panel(
+            "\n".join([
+                f"[magenta bold]vcp portfolio buy {s['symbol']} {s['entry_price']} --stop {s['stop_price']}[/]  "
+                f"→ {s['shares']} shares, target ₹{s['target_price']:,.1f}"
+                for s in signals[:3]
+            ]),
+            title="[bold]Suggested Commands[/]",
+        ))
+
+
 @screen.command("detail")
 @click.argument("symbol")
 def screen_detail(symbol):
@@ -401,13 +470,16 @@ def portfolio_alerts():
 
     for a in alerts:
         alert_text = ", ".join(a["alerts"])
-        color = "red" if any(x in alert_text for x in ["STOP", "PROTECT"]) else "yellow"
+        color = "red" if any(x in alert_text for x in ["STOP", "PROTECT", "FAILED"]) else "yellow"
+        strategy = a.get("strategy", "vcp")
+        stop_display = a.get("effective_stop", a.get("stop_loss", 0))
+        label = "[MR] " if strategy == "mean_reversion" else ""
         console.print(Panel(
             f"[{color}]{alert_text}[/]\n"
             f"Entry: ₹{a['entry_price']:,.1f} | Current: ₹{a['current_price']:,.1f} | "
-            f"Gain: {a['gain_pct']:+.1f}%\n"
-            f"Stop: ₹{a['effective_stop']:,.1f}",
-            title=f"[bold]{a['symbol']}[/] (Position #{a['position_id']})",
+            f"Gain: {a['gain_pct']:+.1f}% | Hold: {a.get('hold_days', 0)}d\n"
+            f"Stop: ₹{stop_display:,.1f}",
+            title=f"[bold]{label}{a['symbol']}[/] (Position #{a['position_id']})",
         ))
 
 

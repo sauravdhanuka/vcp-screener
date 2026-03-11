@@ -31,5 +31,5 @@ def get_session() -> Session:
 
 def init_db():
     """Create all tables."""
-    from vcp_screener.models import stock, daily_price, screening_result, portfolio, backtest  # noqa: F401
+    from vcp_screener.models import stock, daily_price, screening_result, portfolio, backtest, watchlist  # noqa: F401
     Base.metadata.create_all(engine)
