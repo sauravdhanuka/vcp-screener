@@ -1,0 +1,41 @@
+services:
+  dashboard:
+    build: .
+    volumes:
+      - vcp-data:/app/data
+    env_file: .env
+    environment:
+      - TZ=Asia/Kolkata
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  scheduler:
+    build: .
+    command: python -m vcp_screener.scheduler.daily_job
+    volumes:
+      - vcp-data:/app/data
+    env_file: .env
+    environment:
+      - TZ=Asia/Kolkata
+    restart: unless-stopped
+    depends_on:
+      dashboard:
+        condition: service_healthy
+
+  tunnel:
+    image: ngrok/ngrok:latest
+    command: http dashboard:8501 --domain ${NGROK_DOMAIN}
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    restart: unless-stopped
+    depends_on:
+      dashboard:
+        condition: service_healthy
+
+volumes:
+  vcp-data:

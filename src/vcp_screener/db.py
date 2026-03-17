@@ -1,22 +1,28 @@
 """SQLAlchemy engine and session management."""
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from vcp_screener.config import settings
 
-if settings.db_url.startswith("postgresql"):
-    engine = create_engine(
-        settings.db_url,
-        echo=False,
-        pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=10,
-        pool_recycle=300,
-        connect_args={"sslmode": "require"},
-    )
-else:
-    engine = create_engine(settings.db_url, echo=False, pool_pre_ping=True)
+# SQLite needs check_same_thread=False for Streamlit's multi-threading
+_connect_args = {}
+if "sqlite" in settings.db_url:
+    _connect_args["check_same_thread"] = False
+
+engine = create_engine(
+    settings.db_url, echo=False, pool_pre_ping=True, connect_args=_connect_args
+)
+
+# Enable WAL mode for SQLite (concurrent reads + writes)
+if "sqlite" in settings.db_url:
+
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_pragmas(dbapi_conn, connection_record):
+        cursor = dbapi_conn.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.close()
 
 SessionLocal = sessionmaker(bind=engine)
 
