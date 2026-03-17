@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     # Data fetching
     batch_size: int = 50
     batch_delay_seconds: float = 2.0
-    history_period: str = "3y"
+    history_period: str = "5y"
 
     # Pre-filter
     min_price: float = 50.0
@@ -91,33 +91,8 @@ class Settings(BaseSettings):
             self.data_dir.mkdir(parents=True,exist_ok=True)
             self.db_path = self.data_dir / "vcp_screener.db"
             
-        # Check standard DATABASE_URL if VCP_DB_URL is not provided
-        if not self.db_url:
-            self.db_url = os.environ.get("DATABASE_URL", "")
-
-        # Fallback to Streamlit Cloud secrets
-        if not self.db_url:
-            try:
-                import streamlit as st
-                self.db_url = st.secrets.get("DATABASE_URL", "")
-            except Exception:
-                pass
-
-        # SQLAlchemy requires postgresql:// instead of postgres://
-        if self.db_url and self.db_url.startswith("postgres://"):
-            self.db_url = self.db_url.replace("postgres://", "postgresql://", 1)
-
         if not self.db_url:
             self.db_url = f"sqlite:///{self.db_path}"
-
-        # Telegram secrets fallback to Streamlit Cloud secrets
-        if not self.telegram_bot_token:
-            try:
-                import streamlit as st
-                self.telegram_bot_token = st.secrets.get("VCP_TELEGRAM_BOT_TOKEN", "")
-                self.telegram_chat_id = st.secrets.get("VCP_TELEGRAM_CHAT_ID", "")
-            except Exception:
-                pass
 
 
 settings = Settings()
