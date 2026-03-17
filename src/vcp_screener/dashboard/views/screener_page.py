@@ -7,7 +7,7 @@ from plotly.subplots import make_subplots
 
 from vcp_screener.db import get_session, init_db
 from vcp_screener.models.screening_result import ScreeningResult
-from vcp_screener.services.screener import run_screening, get_stock_detail, get_mr_signals
+from vcp_screener.services.screener import run_all_screens, get_stock_detail, load_mr_results
 from vcp_screener.services.data_fetcher import (
     fetch_nse_stock_list, save_stock_list, download_ohlcv,
     get_active_symbols,
@@ -57,10 +57,10 @@ def _load_screening_results():
         session.close()
 
 
-@st.cache_data(ttl=300, show_spinner="Scanning MR candidates...")
+@st.cache_data(ttl=300, show_spinner=False)
 def _load_mr_signals():
-    """Load MR signals. Cached 5 min."""
-    return get_mr_signals()
+    """Load MR signals from DB. Instant — pre-computed by scheduler."""
+    return load_mr_results()
 
 
 def _regime_badge(regime: str) -> str:
@@ -77,14 +77,16 @@ def _regime_badge(regime: str) -> str:
     )
 
 
-def _update_and_screen(period: str = "10d"):
+def _update_and_screen(period: str = "5d"):
     """Update prices + run screening with progress bar."""
+    from vcp_screener.config import settings as cfg
     symbols = get_active_symbols()
     if not symbols:
         progress = st.progress(0, text="Fetching NSE stock list...")
         stocks = fetch_nse_stock_list()
         save_stock_list(stocks)
         symbols = [s["symbol"] for s in stocks]
+        period = cfg.history_period  # 5y for first-time
         progress.progress(5, text=f"Downloading {period} data for {len(symbols)} stocks...")
     else:
         progress = st.progress(5, text=f"Updating {period} data for {len(symbols)} stocks...")
@@ -96,12 +98,11 @@ def _update_and_screen(period: str = "10d"):
     download_ohlcv(symbols, period=period, progress_callback=on_progress,
                    batch_size=100, batch_delay=0.5)
 
-    progress.progress(88, text="Running VCP screening...")
-    run_screening()
+    progress.progress(88, text="Running VCP + MR screening...")
+    run_all_screens()  # saves both VCP and MR to DB
     progress.progress(94, text="Saving equity snapshot...")
     save_equity_snapshot()
     progress.progress(100, text="Done!")
-    # Clear caches
     _load_screening_results.clear()
     _load_mr_signals.clear()
 
@@ -215,22 +216,11 @@ def _render_stock_detail(symbol: str):
 
 
 def render():
-    # Update buttons
     btn_col, regime_col = st.columns([1, 2])
     with btn_col:
-        c1, c2 = st.columns(2)
-        with c1:
-            update_clicked = st.button("Update & Screen", type="primary", use_container_width=True)
-        with c2:
-            with st.popover("Full Download"):
-                st.caption("First-time: download 3y history (~30-60 min)")
-                if st.button("Download 3Y History"):
-                    _update_and_screen("3y")
-                    st.rerun()
-
-    if update_clicked:
-        _update_and_screen("10d")
-        st.rerun()
+        if st.button("Run Screen Now", type="primary", use_container_width=True):
+            _update_and_screen("5d")
+            st.rerun()
 
     # Load cached data
     result = _load_screening_results()

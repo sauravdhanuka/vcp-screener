@@ -69,17 +69,17 @@ except Exception:
 
 # ── Render only the active page ──
 if page == "Screener":
-    from vcp_screener.dashboard.pages import screener_page
+    from vcp_screener.dashboard.views import screener_page
     screener_page.render()
 elif page == "Signals":
-    from vcp_screener.dashboard.pages import signals_page
+    from vcp_screener.dashboard.views import signals_page
     signals_page.render()
 elif page == "Portfolio":
-    from vcp_screener.dashboard.pages import portfolio_page
+    from vcp_screener.dashboard.views import portfolio_page
     portfolio_page.render()
 elif page == "Watchlist":
-    from vcp_screener.dashboard.pages import watchlist_page
+    from vcp_screener.dashboard.views import watchlist_page
     watchlist_page.render()
 elif page == "Market":
-    from vcp_screener.dashboard.pages import market_page
+    from vcp_screener.dashboard.views import market_page
     market_page.render()

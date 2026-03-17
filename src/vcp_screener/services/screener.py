@@ -467,3 +467,83 @@ def get_mr_signals() -> list[dict]:
 
     finally:
         session.close()
+
+
+def save_mr_results(mr_signals: list[dict]):
+    """Persist MR screening results to DB for instant dashboard loading."""
+    from vcp_screener.models.mr_screening_result import MRScreeningResult
+    session = get_session()
+    try:
+        run_date = datetime.now().date()
+        session.query(MRScreeningResult).filter(MRScreeningResult.run_date == run_date).delete()
+        for s in mr_signals:
+            session.add(MRScreeningResult(
+                run_date=run_date,
+                symbol=s["symbol"],
+                close_price=s["close"],
+                sma_20=s["sma_20"],
+                sma_10=s["sma_10"],
+                rsi_2=s["rsi_2"],
+                ibs=s["ibs"],
+                z_score=s["z_score"],
+                volume_ratio=s["volume_ratio"],
+                entry_price=s["entry_price"],
+                stop_price=s["stop_price"],
+                target_price=s["target_price"],
+                shares=s["shares"],
+                cost=s["cost"],
+                reason=s.get("reason", ""),
+            ))
+        session.commit()
+        logger.info(f"Saved {len(mr_signals)} MR results for {run_date}")
+    finally:
+        session.close()
+
+
+def load_mr_results() -> list[dict]:
+    """Load latest MR screening results from DB. Instant — no computation."""
+    from vcp_screener.models.mr_screening_result import MRScreeningResult
+    session = get_session()
+    try:
+        last_date = session.query(MRScreeningResult.run_date).order_by(
+            MRScreeningResult.run_date.desc()
+        ).first()
+        if not last_date:
+            return []
+        results = session.query(MRScreeningResult).filter(
+            MRScreeningResult.run_date == last_date[0]
+        ).order_by(MRScreeningResult.z_score).all()
+        return [{
+            "symbol": r.symbol,
+            "close": r.close_price,
+            "sma_20": r.sma_20,
+            "sma_10": r.sma_10,
+            "rsi_2": r.rsi_2,
+            "ibs": r.ibs,
+            "z_score": r.z_score,
+            "volume_ratio": r.volume_ratio,
+            "entry_price": r.entry_price,
+            "stop_price": r.stop_price,
+            "target_price": r.target_price,
+            "shares": r.shares,
+            "cost": r.cost,
+            "signal": "MR_BUY",
+            "strategy": "mean_reversion",
+            "reason": r.reason,
+        } for r in results]
+    finally:
+        session.close()
+
+
+def run_all_screens(save_results: bool = True) -> dict:
+    """Run VCP + MR screening and persist both to DB."""
+    vcp_results = run_screening(save_results=save_results)
+    mr_signals = get_mr_signals()
+    if save_results:
+        save_mr_results(mr_signals)
+    regime = vcp_results[0]["market_regime"] if vcp_results else "UNKNOWN"
+    return {
+        "vcp_candidates": vcp_results,
+        "mr_signals": mr_signals,
+        "market_regime": regime,
+    }
