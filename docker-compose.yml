@@ -29,7 +29,7 @@ services:
 
   tunnel:
     image: ngrok/ngrok:latest
-    command: http dashboard:8501 --domain ${NGROK_DOMAIN}
+    command: http dashboard:8501 --url ${NGROK_DOMAIN}
     environment:
       - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
     restart: unless-stopped
