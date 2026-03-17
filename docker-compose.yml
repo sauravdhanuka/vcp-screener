@@ -1,6 +1,8 @@
 services:
   dashboard:
     build: .
+    ports:
+      - "8501:8501"
     volumes:
       - vcp-data:/app/data
     env_file: .env
@@ -22,16 +24,6 @@ services:
     env_file: .env
     environment:
       - TZ=Asia/Kolkata
-    restart: unless-stopped
-    depends_on:
-      dashboard:
-        condition: service_healthy
-
-  tunnel:
-    image: ngrok/ngrok:latest
-    command: http dashboard:8501 --url ${NGROK_DOMAIN}
-    environment:
-      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
     restart: unless-stopped
     depends_on:
       dashboard:

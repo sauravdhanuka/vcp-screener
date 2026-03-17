@@ -53,21 +53,16 @@ cd "$REPO_DIR"
 # 5. Create .env if not exists
 if [ ! -f .env ]; then
     cat > .env << 'ENVEOF'
-# ngrok (get from https://dashboard.ngrok.com)
-NGROK_AUTHTOKEN=your-ngrok-auth-token
-NGROK_DOMAIN=your-name.ngrok-free.app
-
-# Telegram alerts
-VCP_TELEGRAM_BOT_TOKEN=your-bot-token
-VCP_TELEGRAM_CHAT_ID=your-chat-id
+# VCP Screener settings (override defaults via VCP_ prefix)
+# VCP_ACCOUNT_SIZE=500000
+# VCP_MAX_POSITIONS=6
 ENVEOF
     echo ""
     echo "=========================================="
-    echo "  .env file created. Edit it now:"
+    echo "  .env file created. Edit if needed:"
     echo "  nano $REPO_DIR/.env"
     echo "=========================================="
     echo ""
-    read -p "Press Enter after editing .env to continue..."
 fi
 
 # 6. Build Docker images
@@ -93,10 +88,13 @@ docker compose exec dashboard vcp data download
 echo "Running initial screening..."
 docker compose exec dashboard vcp screen run
 
+# Get external IP
+EXTERNAL_IP=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip 2>/dev/null || echo "EXTERNAL_IP")
+
 echo ""
 echo "=========================================="
 echo "  Setup complete!"
-echo "  Dashboard: https://$(grep NGROK_DOMAIN .env | cut -d= -f2)"
+echo "  Dashboard: http://${EXTERNAL_IP}:8501"
 echo "  Logs:      docker compose logs -f"
 echo "  Update:    bash deploy/update.sh"
 echo "=========================================="

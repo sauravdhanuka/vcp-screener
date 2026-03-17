@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Create GCP e2-micro VM for VCP Screener (free tier, no external IP)
+# Create GCP e2-micro VM for VCP Screener (free tier)
 # Run from local machine: bash deploy/gcp-setup.sh
 set -euo pipefail
 
@@ -28,7 +28,24 @@ else
     echo "IAP SSH firewall rule already exists."
 fi
 
-# 3. Create VM
+# 3. Create firewall rule for Streamlit access (if not exists)
+if ! gcloud compute firewall-rules describe allow-streamlit &>/dev/null; then
+    echo "Creating Streamlit firewall rule..."
+    echo "NOTE: To restrict access later, run: bash deploy/update-ip.sh"
+    gcloud compute firewall-rules create allow-streamlit \
+        --direction=INGRESS \
+        --priority=1000 \
+        --network=default \
+        --action=ALLOW \
+        --rules=tcp:8501 \
+        --source-ranges="0.0.0.0/0" \
+        --target-tags=streamlit-access \
+        --description="Allow Streamlit dashboard access (public)"
+else
+    echo "Streamlit firewall rule already exists."
+fi
+
+# 4. Create VM
 echo "Creating VM: $VM_NAME in $ZONE..."
 gcloud compute instances create "$VM_NAME" \
     --zone="$ZONE" \
@@ -37,8 +54,7 @@ gcloud compute instances create "$VM_NAME" \
     --image-project=debian-cloud \
     --boot-disk-size=30GB \
     --boot-disk-type=pd-standard \
-    --no-address \
-    --tags=iap-ssh \
+    --tags=iap-ssh,streamlit-access \
     --metadata=startup-script='#!/bin/bash
 # Auto-install Docker on first boot
 if ! command -v docker &>/dev/null; then
@@ -61,3 +77,5 @@ echo "VM created! SSH into it with:"
 echo "  gcloud compute ssh $VM_NAME --zone=$ZONE --tunnel-through-iap"
 echo ""
 echo "Then run: bash ~/vcp-screener/deploy/vm-bootstrap.sh"
+echo ""
+echo "Update your allowed IP with: bash deploy/update-ip.sh"

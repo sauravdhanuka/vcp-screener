@@ -64,50 +64,80 @@ def screen():
 
 @screen.command("run")
 def screen_run():
-    """Run the full VCP screening pipeline."""
-    from vcp_screener.services.screener import run_screening
+    """Run the full VCP + MR screening pipeline."""
+    from vcp_screener.services.screener import run_all_screens
 
-    console.print("[bold]Running VCP screening pipeline...[/]")
-    results = run_screening()
+    console.print("[bold]Running VCP + MR screening pipeline...[/]")
+    all_results = run_all_screens()
 
-    if not results:
-        console.print("[yellow]No VCP candidates found.[/]")
-        return
-
-    regime = results[0].get("market_regime", "UNKNOWN")
+    regime = all_results["market_regime"]
     regime_color = {"BULLISH": "green", "CAUTIOUS": "yellow", "BEARISH": "red"}.get(regime, "white")
     console.print(Panel(f"Market Regime: [{regime_color}]{regime}[/]", title="Market Status"))
 
-    table = Table(title=f"Top {len(results)} VCP Candidates", show_lines=True)
-    table.add_column("#", style="dim", width=4)
-    table.add_column("Symbol", style="cyan bold", width=12)
-    table.add_column("Close", justify="right", width=10)
-    table.add_column("VCP Score", justify="right", width=10)
-    table.add_column("RS %ile", justify="right", width=8)
-    table.add_column("Pivot", justify="right", width=10)
-    table.add_column("Depth %", justify="right", width=8)
-    table.add_column("Contr.", justify="right", width=6)
-    table.add_column("Tight.", justify="right", width=7)
-    table.add_column("Vol Dry%", justify="right", width=8)
-    table.add_column("Days", justify="right", width=6)
+    # VCP table
+    results = all_results["vcp_candidates"]
+    if results:
+        table = Table(title=f"Top {len(results)} VCP Candidates", show_lines=True)
+        table.add_column("#", style="dim", width=4)
+        table.add_column("Symbol", style="cyan bold", width=12)
+        table.add_column("Close", justify="right", width=10)
+        table.add_column("VCP Score", justify="right", width=10)
+        table.add_column("RS %ile", justify="right", width=8)
+        table.add_column("Pivot", justify="right", width=10)
+        table.add_column("Depth %", justify="right", width=8)
+        table.add_column("Contr.", justify="right", width=6)
+        table.add_column("Tight.", justify="right", width=7)
+        table.add_column("Vol Dry%", justify="right", width=8)
+        table.add_column("Days", justify="right", width=6)
 
-    for r in results:
-        score_color = "green" if r["vcp_score"] >= 70 else "yellow" if r["vcp_score"] >= 50 else "white"
-        table.add_row(
-            str(r["rank"]),
-            r["symbol"],
-            f"₹{r['close_price']:,.1f}",
-            f"[{score_color}]{r['vcp_score']}[/]",
-            f"{r['rs_percentile']:.0f}",
-            f"₹{r.get('pivot_price', 0):,.1f}" if r.get("pivot_price") else "-",
-            f"{r.get('base_depth_pct', 0):.1f}",
-            str(r.get("num_contractions", 0)),
-            f"{r.get('tightness_ratio', 0):.2f}",
-            f"{r.get('volume_dry_up', 0):.0f}",
-            str(r.get("base_duration_days", 0)),
-        )
+        for r in results:
+            score_color = "green" if r["vcp_score"] >= 70 else "yellow" if r["vcp_score"] >= 50 else "white"
+            table.add_row(
+                str(r["rank"]),
+                r["symbol"],
+                f"₹{r['close_price']:,.1f}",
+                f"[{score_color}]{r['vcp_score']}[/]",
+                f"{r['rs_percentile']:.0f}",
+                f"₹{r.get('pivot_price', 0):,.1f}" if r.get("pivot_price") else "-",
+                f"{r.get('base_depth_pct', 0):.1f}",
+                str(r.get("num_contractions", 0)),
+                f"{r.get('tightness_ratio', 0):.2f}",
+                f"{r.get('volume_dry_up', 0):.0f}",
+                str(r.get("base_duration_days", 0)),
+            )
+        console.print(table)
+    else:
+        console.print("[yellow]No VCP candidates found.[/]")
 
-    console.print(table)
+    # MR table
+    mr_signals = all_results["mr_signals"]
+    if mr_signals:
+        mr_table = Table(title=f"{len(mr_signals)} Mean Reversion Signals", show_lines=True)
+        mr_table.add_column("Symbol", style="magenta bold", width=12)
+        mr_table.add_column("Close", justify="right", width=10)
+        mr_table.add_column("RSI(2)", justify="right", width=7)
+        mr_table.add_column("IBS", justify="right", width=7)
+        mr_table.add_column("Z-Score", justify="right", width=8)
+        mr_table.add_column("Entry", justify="right", width=10)
+        mr_table.add_column("Stop", justify="right", width=10)
+        mr_table.add_column("Target", justify="right", width=10)
+        mr_table.add_column("Shares", justify="right", width=7)
+
+        for s in mr_signals:
+            mr_table.add_row(
+                s["symbol"],
+                f"₹{s['close']:,.1f}",
+                f"{s['rsi_2']:.1f}",
+                f"{s['ibs']:.3f}",
+                f"{s['z_score']:.1f}",
+                f"₹{s['entry_price']:,.1f}",
+                f"₹{s['stop_price']:,.1f}",
+                f"₹{s['target_price']:,.1f}",
+                str(s["shares"]),
+            )
+        console.print(mr_table)
+    else:
+        console.print("[yellow]No MR candidates (no extreme oversold conditions).[/]")
 
 
 @screen.command("signals")

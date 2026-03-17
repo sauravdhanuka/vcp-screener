@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from vcp_screener.services.screener import get_buy_signals, get_mr_signals
+from vcp_screener.services.screener import get_buy_signals, load_mr_results
 from vcp_screener.services.watchlist_service import add_to_watchlist
 
 
@@ -11,9 +11,9 @@ def _load_vcp_signals():
     return get_buy_signals()
 
 
-@st.cache_data(ttl=300, show_spinner="Scanning MR candidates...")
+@st.cache_data(ttl=300, show_spinner=False)
 def _load_mr_signals():
-    return get_mr_signals()
+    return load_mr_results()
 
 
 def _signal_badge(signal_type: str) -> str:
