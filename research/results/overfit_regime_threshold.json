@@ -1,0 +1,133 @@
+{
+  "runs": [
+    {
+      "threshold": "35/55",
+      "bear": 35,
+      "bull": 55,
+      "mr_config": "baseline",
+      "metrics": {
+        "total_return_pct": 3149.61,
+        "cagr_pct": 42.07,
+        "max_drawdown_pct": 24.81,
+        "sharpe_ratio": 1.61,
+        "profit_factor": 1.74,
+        "win_rate_pct": 47.3,
+        "total_trades": 626,
+        "mr_trades": 253,
+        "mr_wins": 132,
+        "mr_pnl": 2774797.634991641
+      }
+    },
+    {
+      "threshold": "35/55",
+      "bear": 35,
+      "bull": 55,
+      "mr_config": "rsi75",
+      "metrics": {
+        "total_return_pct": 4087.62,
+        "cagr_pct": 45.75,
+        "max_drawdown_pct": 25.19,
+        "sharpe_ratio": 1.7,
+        "profit_factor": 1.78,
+        "win_rate_pct": 43.7,
+        "total_trades": 641,
+        "mr_trades": 240,
+        "mr_wins": 112,
+        "mr_pnl": 3352804.686693758
+      }
+    },
+    {
+      "threshold": "30/50",
+      "bear": 30,
+      "bull": 50,
+      "mr_config": "baseline",
+      "metrics": {
+        "total_return_pct": 490.61,
+        "cagr_pct": 19.62,
+        "max_drawdown_pct": 32.79,
+        "sharpe_ratio": 0.88,
+        "profit_factor": 1.38,
+        "win_rate_pct": 43.6,
+        "total_trades": 617,
+        "mr_trades": 233,
+        "mr_wins": 117,
+        "mr_pnl": 538147.807876395
+      }
+    },
+    {
+      "threshold": "30/50",
+      "bear": 30,
+      "bull": 50,
+      "mr_config": "rsi75",
+      "metrics": {
+        "total_return_pct": 1420.24,
+        "cagr_pct": 31.59,
+        "max_drawdown_pct": 26.79,
+        "sharpe_ratio": 1.3,
+        "profit_factor": 1.6,
+        "win_rate_pct": 42.7,
+        "total_trades": 623,
+        "mr_trades": 206,
+        "mr_wins": 95,
+        "mr_pnl": 623649.0506626106
+      }
+    },
+    {
+      "threshold": "40/60",
+      "bear": 40,
+      "bull": 60,
+      "mr_config": "baseline",
+      "metrics": {
+        "total_return_pct": 714.04,
+        "cagr_pct": 23.55,
+        "max_drawdown_pct": 22.84,
+        "sharpe_ratio": 1.01,
+        "profit_factor": 1.32,
+        "win_rate_pct": 44.8,
+        "total_trades": 706,
+        "mr_trades": 311,
+        "mr_wins": 157,
+        "mr_pnl": 1094185.3665184
+      }
+    },
+    {
+      "threshold": "40/60",
+      "bear": 40,
+      "bull": 60,
+      "mr_config": "rsi75",
+      "metrics": {
+        "total_return_pct": 712.26,
+        "cagr_pct": 23.53,
+        "max_drawdown_pct": 33.39,
+        "sharpe_ratio": 1.0,
+        "profit_factor": 1.31,
+        "win_rate_pct": 42.3,
+        "total_trades": 684,
+        "mr_trades": 305,
+        "mr_wins": 138,
+        "mr_pnl": 715977.5304876296
+      }
+    }
+  ],
+  "analysis": {
+    "baseline": {
+      "sharpes": [
+        1.61,
+        0.88,
+        1.01
+      ],
+      "max_diff": 0.73,
+      "verdict": "FAIL"
+    },
+    "rsi75": {
+      "sharpes": [
+        1.7,
+        1.3,
+        1.0
+      ],
+      "max_diff": 0.7,
+      "verdict": "FAIL"
+    }
+  },
+  "verdict": "FAIL"
+}

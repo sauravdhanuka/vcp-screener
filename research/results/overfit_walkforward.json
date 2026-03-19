@@ -1,0 +1,65 @@
+{
+  "folds": [
+    {
+      "fold": 1,
+      "is_period": "2016-04-01->2021-03-31",
+      "oos_period": "2021-04-01->2022-03-31",
+      "is_winner": "rsi70",
+      "is_winner_sharpe": 1.52,
+      "oos_winner_sharpe": 1.97,
+      "oos_baseline_sharpe": 1.97,
+      "oos_mr_trades": 8,
+      "low_trade_warning": false
+    },
+    {
+      "fold": 2,
+      "is_period": "2017-04-01->2022-03-31",
+      "oos_period": "2022-04-01->2023-03-31",
+      "is_winner": "adx30",
+      "is_winner_sharpe": 1.59,
+      "oos_winner_sharpe": -0.07,
+      "oos_baseline_sharpe": -0.2,
+      "oos_mr_trades": 26,
+      "low_trade_warning": false
+    },
+    {
+      "fold": 3,
+      "is_period": "2018-04-01->2023-03-31",
+      "oos_period": "2023-04-01->2024-03-31",
+      "is_winner": "rsi65",
+      "is_winner_sharpe": 1.62,
+      "oos_winner_sharpe": 2.62,
+      "oos_baseline_sharpe": 2.62,
+      "oos_mr_trades": 5,
+      "low_trade_warning": false
+    },
+    {
+      "fold": 4,
+      "is_period": "2019-04-01->2024-03-31",
+      "oos_period": "2024-04-01->2025-03-31",
+      "is_winner": "rsi60",
+      "is_winner_sharpe": 1.83,
+      "oos_winner_sharpe": 1.05,
+      "oos_baseline_sharpe": 1.41,
+      "oos_mr_trades": 35,
+      "low_trade_warning": false
+    },
+    {
+      "fold": 5,
+      "is_period": "2020-04-01->2025-03-31",
+      "oos_period": "2025-04-01->2026-03-01",
+      "is_winner": "rsi65",
+      "is_winner_sharpe": 1.94,
+      "oos_winner_sharpe": 1.71,
+      "oos_baseline_sharpe": 1.71,
+      "oos_mr_trades": 43,
+      "low_trade_warning": false
+    }
+  ],
+  "mean_is_sharpe": 1.7,
+  "mean_oos_sharpe": 1.456,
+  "wfe_pct": 85.65,
+  "unique_is_winners": 4,
+  "low_trade_folds": 0,
+  "verdict": "PASS"
+}

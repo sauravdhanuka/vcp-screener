@@ -1,0 +1,14 @@
+{
+  "dsr": 0.3594,
+  "sr_hat_annual": 1.7,
+  "sr_hat_daily": 0.1071,
+  "e_max_sr_annual": 1.8165,
+  "e_max_sr_daily": 0.1144,
+  "n_trials": 63,
+  "n_observations": 2449,
+  "mean_sr_annual": 1.3754,
+  "std_sr_annual": 0.1917,
+  "skewness": -0.0841,
+  "excess_kurtosis": 3.7699,
+  "verdict": "FAIL"
+}

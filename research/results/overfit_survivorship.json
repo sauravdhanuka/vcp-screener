@@ -1,0 +1,13 @@
+{
+  "total_stocks_in_db": 2240,
+  "entered_after_2016": 1094,
+  "ended_before_2026": 0,
+  "estimated_survivorship_pct": 0.0,
+  "haircut_range_annual": "1-4%",
+  "assumed_annual_bias": 2.0,
+  "original_sharpe": 1.61,
+  "adjusted_sharpe": 1.53,
+  "original_cagr": 42.07,
+  "adjusted_cagr": 40.07,
+  "sharpe_reduction_pct": 4.8
+}
