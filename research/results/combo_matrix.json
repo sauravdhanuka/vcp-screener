@@ -1,0 +1,305 @@
+[
+  {
+    "name": "stop_5_base + adx_lt30 + rsi_single5_base + rsi_exit_75 + trend_none_base",
+    "overrides": {
+      "require_adx": true,
+      "adx_max": 30,
+      "rsi_exit": 75
+    },
+    "combo_index": 1
+  },
+  {
+    "name": "stop_20 + adx_lt30 + rsi_single5_base + rsi_exit_75 + trend_none_base",
+    "overrides": {
+      "stop_pct": 20,
+      "require_adx": true,
+      "adx_max": 30,
+      "rsi_exit": 75
+    },
+    "combo_index": 2
+  },
+  {
+    "name": "stop_5_base + no_adx_base + rsi_single5_base + rsi_exit_75 + trend_none_base",
+    "overrides": {
+      "rsi_exit": 75
+    },
+    "combo_index": 3
+  },
+  {
+    "name": "stop_20 + no_adx_base + rsi_single5_base + rsi_exit_75 + trend_none_base",
+    "overrides": {
+      "stop_pct": 20,
+      "rsi_exit": 75
+    },
+    "combo_index": 4
+  },
+  {
+    "name": "stop_5_base + adx_lt30 + rsi_cum3_15 + rsi_exit_75 + trend_none_base",
+    "overrides": {
+      "require_adx": true,
+      "adx_max": 30,
+      "rsi_mode": "cum3",
+      "rsi_entry": 15,
+      "rsi_exit": 75
+    },
+    "combo_index": 5
+  },
+  {
+    "name": "stop_20 + adx_lt30 + rsi_cum3_15 + rsi_exit_75 + trend_none_base",
+    "overrides": {
+      "stop_pct": 20,
+      "require_adx": true,
+      "adx_max": 30,
+      "rsi_mode": "cum3",
+      "rsi_entry": 15,
+      "rsi_exit": 75
+    },
+    "combo_index": 6
+  },
+  {
+    "name": "stop_5_base + no_adx_base + rsi_cum3_15 + rsi_exit_75 + trend_none_base",
+    "overrides": {
+      "rsi_mode": "cum3",
+      "rsi_entry": 15,
+      "rsi_exit": 75
+    },
+    "combo_index": 7
+  },
+  {
+    "name": "stop_20 + no_adx_base + rsi_cum3_15 + rsi_exit_75 + trend_none_base",
+    "overrides": {
+      "stop_pct": 20,
+      "rsi_mode": "cum3",
+      "rsi_entry": 15,
+      "rsi_exit": 75
+    },
+    "combo_index": 8
+  },
+  {
+    "name": "stop_5_base + adx_lt30 + rsi_single5_base + rsi_exit_65_base + trend_none_base",
+    "overrides": {
+      "require_adx": true,
+      "adx_max": 30
+    },
+    "combo_index": 9
+  },
+  {
+    "name": "stop_20 + adx_lt30 + rsi_single5_base + rsi_exit_65_base + trend_none_base",
+    "overrides": {
+      "stop_pct": 20,
+      "require_adx": true,
+      "adx_max": 30
+    },
+    "combo_index": 10
+  },
+  {
+    "name": "stop_5_base + no_adx_base + rsi_single5_base + rsi_exit_65_base + trend_none_base",
+    "overrides": {},
+    "combo_index": 11
+  },
+  {
+    "name": "stop_20 + no_adx_base + rsi_single5_base + rsi_exit_65_base + trend_none_base",
+    "overrides": {
+      "stop_pct": 20
+    },
+    "combo_index": 12
+  },
+  {
+    "name": "stop_5_base + adx_lt30 + rsi_cum3_15 + rsi_exit_65_base + trend_none_base",
+    "overrides": {
+      "require_adx": true,
+      "adx_max": 30,
+      "rsi_mode": "cum3",
+      "rsi_entry": 15
+    },
+    "combo_index": 13
+  },
+  {
+    "name": "stop_20 + adx_lt30 + rsi_cum3_15 + rsi_exit_65_base + trend_none_base",
+    "overrides": {
+      "stop_pct": 20,
+      "require_adx": true,
+      "adx_max": 30,
+      "rsi_mode": "cum3",
+      "rsi_entry": 15
+    },
+    "combo_index": 14
+  },
+  {
+    "name": "stop_5_base + no_adx_base + rsi_cum3_15 + rsi_exit_65_base + trend_none_base",
+    "overrides": {
+      "rsi_mode": "cum3",
+      "rsi_entry": 15
+    },
+    "combo_index": 15
+  },
+  {
+    "name": "stop_20 + no_adx_base + rsi_cum3_15 + rsi_exit_65_base + trend_none_base",
+    "overrides": {
+      "stop_pct": 20,
+      "rsi_mode": "cum3",
+      "rsi_entry": 15
+    },
+    "combo_index": 16
+  },
+  {
+    "name": "stop_5_base + adx_lt30 + rsi_single5_base + rsi_exit_75 + trend_sma200",
+    "overrides": {
+      "require_adx": true,
+      "adx_max": 30,
+      "rsi_exit": 75,
+      "trend_filter": "sma200"
+    },
+    "combo_index": 17
+  },
+  {
+    "name": "stop_20 + adx_lt30 + rsi_single5_base + rsi_exit_75 + trend_sma200",
+    "overrides": {
+      "stop_pct": 20,
+      "require_adx": true,
+      "adx_max": 30,
+      "rsi_exit": 75,
+      "trend_filter": "sma200"
+    },
+    "combo_index": 18
+  },
+  {
+    "name": "stop_5_base + no_adx_base + rsi_single5_base + rsi_exit_75 + trend_sma200",
+    "overrides": {
+      "rsi_exit": 75,
+      "trend_filter": "sma200"
+    },
+    "combo_index": 19
+  },
+  {
+    "name": "stop_20 + no_adx_base + rsi_single5_base + rsi_exit_75 + trend_sma200",
+    "overrides": {
+      "stop_pct": 20,
+      "rsi_exit": 75,
+      "trend_filter": "sma200"
+    },
+    "combo_index": 20
+  },
+  {
+    "name": "stop_5_base + adx_lt30 + rsi_cum3_15 + rsi_exit_75 + trend_sma200",
+    "overrides": {
+      "require_adx": true,
+      "adx_max": 30,
+      "rsi_mode": "cum3",
+      "rsi_entry": 15,
+      "rsi_exit": 75,
+      "trend_filter": "sma200"
+    },
+    "combo_index": 21
+  },
+  {
+    "name": "stop_20 + adx_lt30 + rsi_cum3_15 + rsi_exit_75 + trend_sma200",
+    "overrides": {
+      "stop_pct": 20,
+      "require_adx": true,
+      "adx_max": 30,
+      "rsi_mode": "cum3",
+      "rsi_entry": 15,
+      "rsi_exit": 75,
+      "trend_filter": "sma200"
+    },
+    "combo_index": 22
+  },
+  {
+    "name": "stop_5_base + no_adx_base + rsi_cum3_15 + rsi_exit_75 + trend_sma200",
+    "overrides": {
+      "rsi_mode": "cum3",
+      "rsi_entry": 15,
+      "rsi_exit": 75,
+      "trend_filter": "sma200"
+    },
+    "combo_index": 23
+  },
+  {
+    "name": "stop_20 + no_adx_base + rsi_cum3_15 + rsi_exit_75 + trend_sma200",
+    "overrides": {
+      "stop_pct": 20,
+      "rsi_mode": "cum3",
+      "rsi_entry": 15,
+      "rsi_exit": 75,
+      "trend_filter": "sma200"
+    },
+    "combo_index": 24
+  },
+  {
+    "name": "stop_5_base + adx_lt30 + rsi_single5_base + rsi_exit_65_base + trend_sma200",
+    "overrides": {
+      "require_adx": true,
+      "adx_max": 30,
+      "trend_filter": "sma200"
+    },
+    "combo_index": 25
+  },
+  {
+    "name": "stop_20 + adx_lt30 + rsi_single5_base + rsi_exit_65_base + trend_sma200",
+    "overrides": {
+      "stop_pct": 20,
+      "require_adx": true,
+      "adx_max": 30,
+      "trend_filter": "sma200"
+    },
+    "combo_index": 26
+  },
+  {
+    "name": "stop_5_base + no_adx_base + rsi_single5_base + rsi_exit_65_base + trend_sma200",
+    "overrides": {
+      "trend_filter": "sma200"
+    },
+    "combo_index": 27
+  },
+  {
+    "name": "stop_20 + no_adx_base + rsi_single5_base + rsi_exit_65_base + trend_sma200",
+    "overrides": {
+      "stop_pct": 20,
+      "trend_filter": "sma200"
+    },
+    "combo_index": 28
+  },
+  {
+    "name": "stop_5_base + adx_lt30 + rsi_cum3_15 + rsi_exit_65_base + trend_sma200",
+    "overrides": {
+      "require_adx": true,
+      "adx_max": 30,
+      "rsi_mode": "cum3",
+      "rsi_entry": 15,
+      "trend_filter": "sma200"
+    },
+    "combo_index": 29
+  },
+  {
+    "name": "stop_20 + adx_lt30 + rsi_cum3_15 + rsi_exit_65_base + trend_sma200",
+    "overrides": {
+      "stop_pct": 20,
+      "require_adx": true,
+      "adx_max": 30,
+      "rsi_mode": "cum3",
+      "rsi_entry": 15,
+      "trend_filter": "sma200"
+    },
+    "combo_index": 30
+  },
+  {
+    "name": "stop_5_base + no_adx_base + rsi_cum3_15 + rsi_exit_65_base + trend_sma200",
+    "overrides": {
+      "rsi_mode": "cum3",
+      "rsi_entry": 15,
+      "trend_filter": "sma200"
+    },
+    "combo_index": 31
+  },
+  {
+    "name": "stop_20 + no_adx_base + rsi_cum3_15 + rsi_exit_65_base + trend_sma200",
+    "overrides": {
+      "stop_pct": 20,
+      "rsi_mode": "cum3",
+      "rsi_entry": 15,
+      "trend_filter": "sma200"
+    },
+    "combo_index": 32
+  }
+]

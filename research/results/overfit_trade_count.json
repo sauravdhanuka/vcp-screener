@@ -1,0 +1,32 @@
+{
+  "total_trades": 626,
+  "vcp_trades": 373,
+  "mr_trades": 253,
+  "sharpe": 1.61,
+  "se_sharpe": 0.0302,
+  "ci_95_lower": 1.5508,
+  "ci_95_upper": 1.6692,
+  "low_trade_years": [
+    {
+      "year": 2016,
+      "return_pct": 9.66,
+      "max_dd_pct": 4.55,
+      "sharpe": 1.41,
+      "total_trades": 25,
+      "mr_trades": 25,
+      "mr_wins": 17,
+      "mr_pnl": 46906.55
+    },
+    {
+      "year": 2026,
+      "return_pct": -0.5,
+      "max_dd_pct": 7.44,
+      "sharpe": -0.01,
+      "total_trades": 18,
+      "mr_trades": 13,
+      "mr_wins": 5,
+      "mr_pnl": 135128.41
+    }
+  ],
+  "min_trades_per_year": 18
+}

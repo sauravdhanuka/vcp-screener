@@ -142,21 +142,22 @@ def screen_run():
 
 @screen.command("signals")
 def screen_signals():
-    """Show actionable buy signals: which stocks are breaking out NOW."""
-    from vcp_screener.services.screener import get_buy_signals
+    """Show actionable buy signals: VCP breakouts + MR oversold bounces."""
+    from vcp_screener.services.screener import get_buy_signals, load_mr_results
 
     from vcp_screener.config import settings
 
     console.print("[bold]Checking buy signals...[/]")
     signals = get_buy_signals()
+    mr_signals = load_mr_results()
 
-    if not signals:
+    if not signals and not mr_signals:
         console.print("[yellow]No candidates found. Run `vcp screen run` first.[/]")
         return
 
-    regime = signals[0].get("market_regime", "UNKNOWN")
+    regime = signals[0].get("market_regime", "UNKNOWN") if signals else "UNKNOWN"
     regime_color = {"BULLISH": "green", "CAUTIOUS": "yellow", "BEARISH": "red"}.get(regime, "white")
-    console.print(Panel(f"Market Regime: [{regime_color}]{regime}[/]  |  Account: ₹{signals[0].get('risk_amount', 0) / (signals[0].get('risk_amount', 1) and 1) * 40:,.0f}", title="Status"))
+    console.print(Panel(f"Market Regime: [{regime_color}]{regime}[/]", title="Status"))
 
     # BUY signals
     buys = [s for s in signals if s["signal"] == "BUY"]
@@ -243,15 +244,52 @@ def screen_signals():
     forming = [s for s in signals if s["signal"] == "FORMING"]
     console.print(f"\n[dim]{len(forming)} more stocks still forming VCP patterns (not near pivot yet)[/]")
 
+    # MR signals
+    if mr_signals:
+        console.print(f"\n[bold magenta]🟣 MEAN REVERSION — OVERSOLD BOUNCES ({len(mr_signals)} candidates)[/]")
+        mr_table = Table(show_lines=True)
+        mr_table.add_column("Symbol", style="magenta bold", width=12)
+        mr_table.add_column("Close", justify="right")
+        mr_table.add_column("RSI(2)", justify="right")
+        mr_table.add_column("IBS", justify="right")
+        mr_table.add_column("Z-Score", justify="right")
+        mr_table.add_column("Entry", justify="right")
+        mr_table.add_column("Stop", justify="right")
+        mr_table.add_column("Target", justify="right")
+        mr_table.add_column("Shares", justify="right")
+        mr_table.add_column("Cost", justify="right")
+
+        for s in mr_signals:
+            mr_table.add_row(
+                s["symbol"],
+                f"₹{s['close']:,.1f}",
+                f"{s['rsi_2']:.1f}",
+                f"{s['ibs']:.3f}",
+                f"{s['z_score']:.1f}",
+                f"[bold]₹{s['entry_price']:,.1f}[/]",
+                f"₹{s['stop_price']:,.1f}",
+                f"₹{s['target_price']:,.1f}",
+                str(s["shares"]),
+                f"₹{s['cost']:,.0f}",
+            )
+        console.print(mr_table)
+
+    # Suggested commands
+    cmds = []
     if buys:
-        console.print(Panel(
-            "\n".join([
-                f"[green bold]vcp portfolio buy {s['symbol']} {s['entry_price']}[/]  "
-                f"→ {s['shares']} shares, stop ₹{s['stop_price']:,.1f}, cost ₹{s['cost']:,.0f}"
-                for s in buys[:3]
-            ]),
-            title="[bold]Suggested Commands[/]",
-        ))
+        cmds.extend([
+            f"[green bold]vcp portfolio buy {s['symbol']} {s['entry_price']}[/]  "
+            f"→ {s['shares']} shares, stop ₹{s['stop_price']:,.1f}, cost ₹{s['cost']:,.0f}"
+            for s in buys[:3]
+        ])
+    if mr_signals:
+        cmds.extend([
+            f"[magenta bold]vcp portfolio buy {s['symbol']} {s['entry_price']}[/]  "
+            f"→ {s['shares']} shares, stop ₹{s['stop_price']:,.1f}, target ₹{s['target_price']:,.1f}"
+            for s in mr_signals[:3]
+        ])
+    if cmds:
+        console.print(Panel("\n".join(cmds), title="[bold]Suggested Commands[/]"))
 
 
 @screen.command("mr")

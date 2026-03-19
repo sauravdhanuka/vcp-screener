@@ -98,11 +98,40 @@ def _screen_on_date(all_data: dict[str, pd.DataFrame], as_of: pd.Timestamp) -> l
     return candidates[:settings.top_n]
 
 
+def _compute_adx(high, low, close, period=10):
+    """Compute ADX using Wilder's EWM smoothing. Returns Series."""
+    prev_high = high.shift(1)
+    prev_low = low.shift(1)
+    prev_close = close.shift(1)
+
+    tr = pd.concat([
+        high - low,
+        (high - prev_close).abs(),
+        (low - prev_close).abs(),
+    ], axis=1).max(axis=1)
+
+    plus_dm = (high - prev_high).clip(lower=0)
+    minus_dm = (prev_low - low).clip(lower=0)
+    # Zero out when the other DM is larger
+    plus_dm = plus_dm.where(plus_dm > minus_dm, 0)
+    minus_dm = minus_dm.where(minus_dm > plus_dm, 0)
+
+    alpha = 1 / period
+    atr = tr.ewm(alpha=alpha, min_periods=period).mean()
+    plus_di = 100 * plus_dm.ewm(alpha=alpha, min_periods=period).mean() / atr.replace(0, np.nan)
+    minus_di = 100 * minus_dm.ewm(alpha=alpha, min_periods=period).mean() / atr.replace(0, np.nan)
+
+    dx = 100 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan)
+    adx = dx.ewm(alpha=alpha, min_periods=period).mean()
+    return adx.fillna(50)  # Insufficient data → treat as "trending" (filtered out)
+
+
 def precompute_mr_indicators(all_data: dict) -> dict:
     """Precompute all MR indicators for each stock.
 
     Returns dict of symbol -> DataFrame with columns:
-    sma20, std20, sma200, rsi2, ibs, avg_vol, vol
+    sma20, std20, sma200, rsi2, ibs, avg_vol, vol,
+    rsi2_cum2, rsi2_cum3, sma5, sma50, sma50_slope, adx10
     """
     from vcp_screener.services.indicators import rsi as compute_rsi, internal_bar_strength
 
@@ -120,6 +149,15 @@ def precompute_mr_indicators(all_data: dict) -> dict:
         ind["ibs"] = internal_bar_strength(df["high"], df["low"], close)
         ind["vol"] = df["volume"]
         ind["avg_vol"] = df["volume"].rolling(50, min_periods=10).mean()
+        # Cumulative RSI (2-day and 3-day rolling sum of RSI(2))
+        ind["rsi2_cum2"] = ind["rsi2"].rolling(2).sum()
+        ind["rsi2_cum3"] = ind["rsi2"].rolling(3).sum()
+        # SMA5 for target exit, SMA50 + slope for trend filter
+        ind["sma5"] = close.rolling(5, min_periods=5).mean()
+        ind["sma50"] = close.rolling(50, min_periods=50).mean()
+        ind["sma50_slope"] = ind["sma50"].diff(5)
+        # ADX(10) for range-bound filter
+        ind["adx10"] = _compute_adx(df["high"], df["low"], close, period=10)
         # Precompute "any of last N days had high volume" for lookbacks 1-5
         for lb in [1, 2, 3, 5]:
             high_vol = (df["volume"] > ind["avg_vol"] * 1.5).astype(float)
@@ -261,7 +299,7 @@ class BacktestEngine:
         self.mr = {
             "stop_pct": 5,           # Stop loss percentage
             "target": "sma10",       # Exit target: "sma20", "sma10", "sma5", "rsi"
-            "rsi_exit": 65,          # RSI(2) exit threshold (0 = disabled)
+            "rsi_exit": 65,          # RSI(2) exit threshold (0 = disabled) — reverted from 75 after overfitting analysis (DSR=0.36, year-exclusion FAIL)
             "timeout_days": 15,      # Max holding period
             "max_positions": 3,      # Max MR positions
             "risk_pct": 1.5,         # Risk per trade %
@@ -273,6 +311,10 @@ class BacktestEngine:
             "require_uptrend": False, # Require price > SMA(200)
             "all_regimes": False,    # Activate MR in all regimes (not just BEARISH)
             "vol_lookback": 1,       # Volume check: 1=today only, 3=any of last 3 days
+            "require_adx": False,    # Require ADX(10) < adx_max (range-bound filter)
+            "adx_max": 30,           # ADX threshold (lower = more range-bound)
+            "rsi_mode": "single",    # "single" (RSI<threshold), "cum2" (2-day cumRSI), "cum3" (3-day cumRSI)
+            "trend_filter": "none",  # "none", "sma200", "sma50", "sma50_slope"
         }
         if mr_config:
             self.mr.update(mr_config)
@@ -645,8 +687,8 @@ class BacktestEngine:
             current_price = float(df_slice["close"].iloc[-1])
             today_low = float(df_slice["low"].iloc[-1])
 
-            # Stop loss
-            if today_low <= pos["stop_loss"]:
+            # Stop loss (guarded for no-stop mode where stop_loss=0)
+            if pos["stop_loss"] and pos["stop_loss"] > 0 and today_low <= pos["stop_loss"]:
                 to_close.append((pos, pos["stop_loss"], "mr_stop", current_date))
                 continue
 
@@ -720,12 +762,39 @@ class BacktestEngine:
                     continue
                 if vol_col in last and not last[vol_col]:
                     continue
-                if self.mr["require_rsi"] and last["rsi2"] >= self.mr["rsi_entry"]:
-                    continue
+                # RSI filter (supports single, cum2, cum3 modes)
+                if self.mr["require_rsi"]:
+                    rsi_mode = self.mr.get("rsi_mode", "single")
+                    if rsi_mode == "cum2":
+                        val = last.get("rsi2_cum2", float("nan"))
+                        if pd.isna(val) or val >= self.mr["rsi_entry"]:
+                            continue
+                    elif rsi_mode == "cum3":
+                        val = last.get("rsi2_cum3", float("nan"))
+                        if pd.isna(val) or val >= self.mr["rsi_entry"]:
+                            continue
+                    else:  # "single" — original behavior
+                        if last["rsi2"] >= self.mr["rsi_entry"]:
+                            continue
                 if self.mr["require_ibs"] and last["ibs"] >= self.mr["ibs_entry"]:
                     continue
-                if self.mr["require_uptrend"] and not pd.isna(last["sma200"]) and cp < last["sma200"]:
-                    continue
+                # Trend filter (expanded: none, sma200, sma50, sma50_slope)
+                trend_f = self.mr.get("trend_filter", "none")
+                if trend_f == "sma200" or self.mr["require_uptrend"]:
+                    if not pd.isna(last.get("sma200")) and cp < last["sma200"]:
+                        continue
+                elif trend_f == "sma50":
+                    if not pd.isna(last.get("sma50")) and cp < last["sma50"]:
+                        continue
+                elif trend_f == "sma50_slope":
+                    slope = last.get("sma50_slope", float("nan"))
+                    if pd.isna(slope) or slope <= 0:
+                        continue
+                # ADX filter (require range-bound market: ADX < threshold)
+                if self.mr.get("require_adx"):
+                    adx_val = last.get("adx10", float("nan"))
+                    if not pd.isna(adx_val) and adx_val >= self.mr.get("adx_max", 30):
+                        continue
                 z_score = (cp - sma20) / std20
                 candidates.append({"symbol": sym, "close": cp, "sma20": float(sma20), "z_score": float(z_score)})
         else:
@@ -754,21 +823,50 @@ class BacktestEngine:
                 )
                 if not vol_ok:
                     continue
+                # RSI filter (supports single, cum2, cum3 modes)
                 if self.mr["require_rsi"]:
-                    if float(compute_rsi(close, period=2).iloc[-1]) >= self.mr["rsi_entry"]:
-                        continue
+                    rsi_mode = self.mr.get("rsi_mode", "single")
+                    rsi_series = compute_rsi(close, period=2)
+                    if rsi_mode == "cum2":
+                        val = float(rsi_series.rolling(2).sum().iloc[-1])
+                        if pd.isna(val) or val >= self.mr["rsi_entry"]:
+                            continue
+                    elif rsi_mode == "cum3":
+                        val = float(rsi_series.rolling(3).sum().iloc[-1])
+                        if pd.isna(val) or val >= self.mr["rsi_entry"]:
+                            continue
+                    else:  # "single"
+                        if float(rsi_series.iloc[-1]) >= self.mr["rsi_entry"]:
+                            continue
                 if self.mr["require_ibs"]:
                     if float(internal_bar_strength(df["high"], df["low"], close).iloc[-1]) >= self.mr["ibs_entry"]:
                         continue
-                if self.mr["require_uptrend"] and len(df) >= 200:
-                    if current_price < float(close.rolling(200).mean().iloc[-1]):
+                # Trend filter (expanded)
+                trend_f = self.mr.get("trend_filter", "none")
+                if trend_f == "sma200" or (self.mr["require_uptrend"] and len(df) >= 200):
+                    sma200_val = float(close.rolling(200, min_periods=200).mean().iloc[-1])
+                    if not pd.isna(sma200_val) and current_price < sma200_val:
+                        continue
+                elif trend_f == "sma50" and len(df) >= 50:
+                    sma50_val = float(close.rolling(50, min_periods=50).mean().iloc[-1])
+                    if not pd.isna(sma50_val) and current_price < sma50_val:
+                        continue
+                elif trend_f == "sma50_slope" and len(df) >= 55:
+                    sma50 = close.rolling(50, min_periods=50).mean()
+                    slope = float(sma50.diff(5).iloc[-1])
+                    if pd.isna(slope) or slope <= 0:
+                        continue
+                # ADX filter
+                if self.mr.get("require_adx") and len(df) >= 20:
+                    adx_val = float(_compute_adx(df["high"], df["low"], close, period=10).iloc[-1])
+                    if adx_val >= self.mr.get("adx_max", 30):
                         continue
                 z_score = (current_price - sma20) / std20
                 candidates.append({"symbol": sym, "close": current_price, "sma20": sma20, "z_score": z_score})
 
         candidates.sort(key=lambda x: x["z_score"])
 
-        stop_pct = self.mr["stop_pct"] / 100
+        stop_pct_val = self.mr["stop_pct"]
         risk_pct = self.mr["risk_pct"] / 100
 
         for c in candidates[:5]:
@@ -776,13 +874,19 @@ class BacktestEngine:
                 break
 
             entry_price = c["close"]
-            stop_price = entry_price * (1 - stop_pct)
 
-            risk_amount = current_equity * risk_pct
-            risk_per_share = entry_price - stop_price
-            if risk_per_share <= 0:
-                continue
-            shares = int(risk_amount / risk_per_share)
+            if not stop_pct_val:
+                # No stop: fixed 5% of equity per position
+                shares = int(current_equity * 0.05 / entry_price)
+                stop_price = 0
+            else:
+                stop_pct = stop_pct_val / 100
+                stop_price = entry_price * (1 - stop_pct)
+                risk_amount = current_equity * risk_pct
+                risk_per_share = entry_price - stop_price
+                if risk_per_share <= 0:
+                    continue
+                shares = int(risk_amount / risk_per_share)
             if shares <= 0:
                 continue
 

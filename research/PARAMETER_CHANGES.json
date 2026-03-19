@@ -1,0 +1,20 @@
+{
+  "stop_pct": 5,
+  "target": "sma10",
+  "rsi_exit": 75,
+  "timeout_days": 15,
+  "max_positions": 3,
+  "risk_pct": 1.5,
+  "entry_std": 1.5,
+  "require_rsi": true,
+  "rsi_entry": 5,
+  "require_ibs": true,
+  "ibs_entry": 0.2,
+  "require_uptrend": false,
+  "all_regimes": false,
+  "vol_lookback": 1,
+  "require_adx": false,
+  "adx_max": 30,
+  "rsi_mode": "single",
+  "trend_filter": "none"
+}

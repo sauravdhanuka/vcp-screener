@@ -1,0 +1,520 @@
+[
+  {
+    "name": "trend_none_base",
+    "overrides": {},
+    "metrics": {
+      "total_return_pct": 3149.61,
+      "cagr_pct": 42.07,
+      "max_drawdown_pct": 24.81,
+      "sharpe_ratio": 1.61,
+      "profit_factor": 1.74,
+      "win_rate_pct": 47.3,
+      "total_trades": 626,
+      "mr_trades": 253,
+      "mr_wins": 132,
+      "mr_pnl": 2774797.634991641
+    },
+    "year_breakdown": [
+      {
+        "year": 2016,
+        "return_pct": 9.66,
+        "max_dd_pct": 4.55,
+        "sharpe": 1.41,
+        "total_trades": 25,
+        "mr_trades": 25,
+        "mr_wins": 17,
+        "mr_pnl": 46906.55
+      },
+      {
+        "year": 2017,
+        "return_pct": 46.54,
+        "max_dd_pct": 11.74,
+        "sharpe": 1.78,
+        "total_trades": 41,
+        "mr_trades": 2,
+        "mr_wins": 2,
+        "mr_pnl": 65529.89
+      },
+      {
+        "year": 2018,
+        "return_pct": 11.14,
+        "max_dd_pct": 17.93,
+        "sharpe": 0.6,
+        "total_trades": 75,
+        "mr_trades": 44,
+        "mr_wins": 24,
+        "mr_pnl": 117221.32
+      },
+      {
+        "year": 2019,
+        "return_pct": 14.71,
+        "max_dd_pct": 20.19,
+        "sharpe": 0.87,
+        "total_trades": 47,
+        "mr_trades": 34,
+        "mr_wins": 15,
+        "mr_pnl": -61192.03
+      },
+      {
+        "year": 2020,
+        "return_pct": 100.85,
+        "max_dd_pct": 24.31,
+        "sharpe": 2.77,
+        "total_trades": 64,
+        "mr_trades": 21,
+        "mr_wins": 8,
+        "mr_pnl": 133194.86
+      },
+      {
+        "year": 2021,
+        "return_pct": 117.08,
+        "max_dd_pct": 11.96,
+        "sharpe": 2.92,
+        "total_trades": 65,
+        "mr_trades": 2,
+        "mr_wins": 2,
+        "mr_pnl": 178671.15
+      },
+      {
+        "year": 2022,
+        "return_pct": -1.14,
+        "max_dd_pct": 24.81,
+        "sharpe": 0.09,
+        "total_trades": 79,
+        "mr_trades": 28,
+        "mr_wins": 13,
+        "mr_pnl": -6230.12
+      },
+      {
+        "year": 2023,
+        "return_pct": 38.08,
+        "max_dd_pct": 9.25,
+        "sharpe": 1.58,
+        "total_trades": 65,
+        "mr_trades": 21,
+        "mr_wins": 10,
+        "mr_pnl": -50553.6
+      },
+      {
+        "year": 2024,
+        "return_pct": 109.25,
+        "max_dd_pct": 12.57,
+        "sharpe": 2.58,
+        "total_trades": 77,
+        "mr_trades": 14,
+        "mr_wins": 9,
+        "mr_pnl": 225302.68
+      },
+      {
+        "year": 2025,
+        "return_pct": 25.67,
+        "max_dd_pct": 21.45,
+        "sharpe": 1.22,
+        "total_trades": 70,
+        "mr_trades": 49,
+        "mr_wins": 27,
+        "mr_pnl": 1990818.53
+      },
+      {
+        "year": 2026,
+        "return_pct": -0.5,
+        "max_dd_pct": 7.44,
+        "sharpe": -0.01,
+        "total_trades": 18,
+        "mr_trades": 13,
+        "mr_wins": 5,
+        "mr_pnl": 135128.41
+      }
+    ]
+  },
+  {
+    "name": "trend_sma200",
+    "overrides": {
+      "trend_filter": "sma200"
+    },
+    "metrics": {
+      "total_return_pct": 1365.3,
+      "cagr_pct": 31.1,
+      "max_drawdown_pct": 30.37,
+      "sharpe_ratio": 1.34,
+      "profit_factor": 1.67,
+      "win_rate_pct": 43.8,
+      "total_trades": 502,
+      "mr_trades": 143,
+      "mr_wins": 71,
+      "mr_pnl": 943175.9466981875
+    },
+    "year_breakdown": [
+      {
+        "year": 2016,
+        "return_pct": 9.66,
+        "max_dd_pct": 4.55,
+        "sharpe": 1.41,
+        "total_trades": 25,
+        "mr_trades": 25,
+        "mr_wins": 17,
+        "mr_pnl": 46906.55
+      },
+      {
+        "year": 2017,
+        "return_pct": 30.65,
+        "max_dd_pct": 11.74,
+        "sharpe": 1.36,
+        "total_trades": 38,
+        "mr_trades": 1,
+        "mr_wins": 1,
+        "mr_pnl": 60091.5
+      },
+      {
+        "year": 2018,
+        "return_pct": -6.39,
+        "max_dd_pct": 18.62,
+        "sharpe": -0.33,
+        "total_trades": 43,
+        "mr_trades": 19,
+        "mr_wins": 7,
+        "mr_pnl": -52442.81
+      },
+      {
+        "year": 2019,
+        "return_pct": 19.91,
+        "max_dd_pct": 13.91,
+        "sharpe": 1.25,
+        "total_trades": 21,
+        "mr_trades": 9,
+        "mr_wins": 3,
+        "mr_pnl": -11070.8
+      },
+      {
+        "year": 2020,
+        "return_pct": 78.53,
+        "max_dd_pct": 24.56,
+        "sharpe": 2.64,
+        "total_trades": 59,
+        "mr_trades": 7,
+        "mr_wins": 0,
+        "mr_pnl": -83368.33
+      },
+      {
+        "year": 2021,
+        "return_pct": 52.02,
+        "max_dd_pct": 17.31,
+        "sharpe": 1.84,
+        "total_trades": 51,
+        "mr_trades": 0,
+        "mr_wins": 0,
+        "mr_pnl": 0
+      },
+      {
+        "year": 2022,
+        "return_pct": -1.41,
+        "max_dd_pct": 28.11,
+        "sharpe": 0.09,
+        "total_trades": 65,
+        "mr_trades": 8,
+        "mr_wins": 4,
+        "mr_pnl": -3184.41
+      },
+      {
+        "year": 2023,
+        "return_pct": 85.33,
+        "max_dd_pct": 10.92,
+        "sharpe": 2.94,
+        "total_trades": 53,
+        "mr_trades": 17,
+        "mr_wins": 10,
+        "mr_pnl": 10966.68
+      },
+      {
+        "year": 2024,
+        "return_pct": 59.23,
+        "max_dd_pct": 11.62,
+        "sharpe": 1.77,
+        "total_trades": 77,
+        "mr_trades": 13,
+        "mr_wins": 8,
+        "mr_pnl": 324287.07
+      },
+      {
+        "year": 2025,
+        "return_pct": 13.91,
+        "max_dd_pct": 18.37,
+        "sharpe": 0.69,
+        "total_trades": 56,
+        "mr_trades": 35,
+        "mr_wins": 18,
+        "mr_pnl": 838148.86
+      },
+      {
+        "year": 2026,
+        "return_pct": -2.88,
+        "max_dd_pct": 9.63,
+        "sharpe": -0.86,
+        "total_trades": 14,
+        "mr_trades": 9,
+        "mr_wins": 3,
+        "mr_pnl": -187158.37
+      }
+    ]
+  },
+  {
+    "name": "trend_sma50",
+    "overrides": {
+      "trend_filter": "sma50"
+    },
+    "metrics": {
+      "total_return_pct": 942.9,
+      "cagr_pct": 26.68,
+      "max_drawdown_pct": 28.73,
+      "sharpe_ratio": 1.24,
+      "profit_factor": 1.66,
+      "win_rate_pct": 42.5,
+      "total_trades": 358,
+      "mr_trades": 23,
+      "mr_wins": 16,
+      "mr_pnl": 185515.87002544382
+    },
+    "year_breakdown": [
+      {
+        "year": 2016,
+        "return_pct": 4.26,
+        "max_dd_pct": 2.34,
+        "sharpe": 1.09,
+        "total_trades": 13,
+        "mr_trades": 13,
+        "mr_wins": 10,
+        "mr_pnl": 21287.42
+      },
+      {
+        "year": 2017,
+        "return_pct": -1.82,
+        "max_dd_pct": 17.59,
+        "sharpe": -0.02,
+        "total_trades": 32,
+        "mr_trades": 0,
+        "mr_wins": 0,
+        "mr_pnl": 0
+      },
+      {
+        "year": 2018,
+        "return_pct": -0.4,
+        "max_dd_pct": 14.62,
+        "sharpe": 0.07,
+        "total_trades": 26,
+        "mr_trades": 3,
+        "mr_wins": 2,
+        "mr_pnl": -7645.08
+      },
+      {
+        "year": 2019,
+        "return_pct": 22.98,
+        "max_dd_pct": 11.38,
+        "sharpe": 1.46,
+        "total_trades": 14,
+        "mr_trades": 2,
+        "mr_wins": 2,
+        "mr_pnl": 4273.1
+      },
+      {
+        "year": 2020,
+        "return_pct": 76.85,
+        "max_dd_pct": 16.1,
+        "sharpe": 2.53,
+        "total_trades": 43,
+        "mr_trades": 0,
+        "mr_wins": 0,
+        "mr_pnl": 0
+      },
+      {
+        "year": 2021,
+        "return_pct": 107.95,
+        "max_dd_pct": 12.21,
+        "sharpe": 2.81,
+        "total_trades": 63,
+        "mr_trades": 0,
+        "mr_wins": 0,
+        "mr_pnl": 0
+      },
+      {
+        "year": 2022,
+        "return_pct": -4.66,
+        "max_dd_pct": 23.9,
+        "sharpe": -0.08,
+        "total_trades": 51,
+        "mr_trades": 1,
+        "mr_wins": 0,
+        "mr_pnl": -28799.88
+      },
+      {
+        "year": 2023,
+        "return_pct": 84.87,
+        "max_dd_pct": 11.36,
+        "sharpe": 3.2,
+        "total_trades": 35,
+        "mr_trades": 1,
+        "mr_wins": 1,
+        "mr_pnl": 60558.75
+      },
+      {
+        "year": 2024,
+        "return_pct": 66.81,
+        "max_dd_pct": 11.31,
+        "sharpe": 1.97,
+        "total_trades": 55,
+        "mr_trades": 0,
+        "mr_wins": 0,
+        "mr_pnl": 0
+      },
+      {
+        "year": 2025,
+        "return_pct": -17.22,
+        "max_dd_pct": 21.13,
+        "sharpe": -1.02,
+        "total_trades": 21,
+        "mr_trades": 1,
+        "mr_wins": 1,
+        "mr_pnl": 301892.77
+      },
+      {
+        "year": 2026,
+        "return_pct": -8.3,
+        "max_dd_pct": 9.69,
+        "sharpe": -4.19,
+        "total_trades": 5,
+        "mr_trades": 2,
+        "mr_wins": 0,
+        "mr_pnl": -166051.21
+      }
+    ]
+  },
+  {
+    "name": "trend_sma50_slope",
+    "overrides": {
+      "trend_filter": "sma50_slope"
+    },
+    "metrics": {
+      "total_return_pct": 618.62,
+      "cagr_pct": 22.01,
+      "max_drawdown_pct": 26.52,
+      "sharpe_ratio": 1.04,
+      "profit_factor": 1.6,
+      "win_rate_pct": 43.9,
+      "total_trades": 442,
+      "mr_trades": 84,
+      "mr_wins": 44,
+      "mr_pnl": 150299.9199277873
+    },
+    "year_breakdown": [
+      {
+        "year": 2016,
+        "return_pct": 1.38,
+        "max_dd_pct": 1.52,
+        "sharpe": 0.76,
+        "total_trades": 4,
+        "mr_trades": 4,
+        "mr_wins": 3,
+        "mr_pnl": 6904.62
+      },
+      {
+        "year": 2017,
+        "return_pct": -1.84,
+        "max_dd_pct": 17.6,
+        "sharpe": -0.02,
+        "total_trades": 32,
+        "mr_trades": 0,
+        "mr_wins": 0,
+        "mr_pnl": 0
+      },
+      {
+        "year": 2018,
+        "return_pct": -0.91,
+        "max_dd_pct": 17.38,
+        "sharpe": 0.05,
+        "total_trades": 35,
+        "mr_trades": 12,
+        "mr_wins": 7,
+        "mr_pnl": -7779.31
+      },
+      {
+        "year": 2019,
+        "return_pct": 16.21,
+        "max_dd_pct": 15.6,
+        "sharpe": 1.06,
+        "total_trades": 22,
+        "mr_trades": 10,
+        "mr_wins": 3,
+        "mr_pnl": -18992.84
+      },
+      {
+        "year": 2020,
+        "return_pct": 55.21,
+        "max_dd_pct": 26.52,
+        "sharpe": 1.88,
+        "total_trades": 53,
+        "mr_trades": 10,
+        "mr_wins": 0,
+        "mr_pnl": -73495.37
+      },
+      {
+        "year": 2021,
+        "return_pct": 65.09,
+        "max_dd_pct": 16.55,
+        "sharpe": 1.97,
+        "total_trades": 72,
+        "mr_trades": 0,
+        "mr_wins": 0,
+        "mr_pnl": 0
+      },
+      {
+        "year": 2022,
+        "return_pct": 3.12,
+        "max_dd_pct": 19.66,
+        "sharpe": 0.25,
+        "total_trades": 65,
+        "mr_trades": 8,
+        "mr_wins": 5,
+        "mr_pnl": 96250.42
+      },
+      {
+        "year": 2023,
+        "return_pct": 58.54,
+        "max_dd_pct": 11.3,
+        "sharpe": 2.45,
+        "total_trades": 51,
+        "mr_trades": 13,
+        "mr_wins": 10,
+        "mr_pnl": 89476.29
+      },
+      {
+        "year": 2024,
+        "return_pct": 39.67,
+        "max_dd_pct": 12.02,
+        "sharpe": 1.29,
+        "total_trades": 64,
+        "mr_trades": 7,
+        "mr_wins": 5,
+        "mr_pnl": 54555.07
+      },
+      {
+        "year": 2025,
+        "return_pct": 10.18,
+        "max_dd_pct": 18.96,
+        "sharpe": 0.61,
+        "total_trades": 37,
+        "mr_trades": 16,
+        "mr_wins": 9,
+        "mr_pnl": 21290.2
+      },
+      {
+        "year": 2026,
+        "return_pct": -5.46,
+        "max_dd_pct": 7.38,
+        "sharpe": -3.13,
+        "total_trades": 7,
+        "mr_trades": 4,
+        "mr_wins": 2,
+        "mr_pnl": -17909.16
+      }
+    ]
+  }
+]
