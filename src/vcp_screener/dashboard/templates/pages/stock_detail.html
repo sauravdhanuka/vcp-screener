@@ -66,28 +66,80 @@
             <div class="px-4 py-3 border-b border-bg-border">
                 <h2 class="text-sm font-semibold text-white">{{ symbol }} — Daily Chart</h2>
             </div>
-            <div class="tradingview-widget-container" style="height:500px">
-                <div id="tradingview-chart" style="height:100%"></div>
-                <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-                <script type="text/javascript">
-                    new TradingView.widget({
-                        "autosize": true,
-                        "symbol": "NSE:{{ symbol }}",
-                        "interval": "D",
-                        "timezone": "Asia/Kolkata",
-                        "theme": "dark",
-                        "style": "1",
-                        "locale": "en",
-                        "toolbar_bg": "#0d1117",
-                        "hide_side_toolbar": false,
-                        "allow_symbol_change": false,
-                        "studies": ["STD;SMA@tv-basicstudies|20", "STD;SMA@tv-basicstudies|50"],
-                        "container_id": "tradingview-chart",
-                        "backgroundColor": "#0d1117",
-                        "gridColor": "#21262d",
+            <div id="chart-container" style="height:500px"></div>
+            <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+            <script>
+                const chartContainer = document.getElementById('chart-container');
+                const chart = LightweightCharts.createChart(chartContainer, {
+                    layout: { background: { color: '#0d1117' }, textColor: '#8b949e' },
+                    grid: { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
+                    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+                    rightPriceScale: { borderColor: '#21262d' },
+                    timeScale: { borderColor: '#21262d', timeVisible: false },
+                });
+
+                // Candlestick series
+                const candleSeries = chart.addCandlestickSeries({
+                    upColor: '#2ea043', downColor: '#f85149',
+                    borderUpColor: '#2ea043', borderDownColor: '#f85149',
+                    wickUpColor: '#2ea043', wickDownColor: '#f85149',
+                });
+                candleSeries.setData({{ chart_data_json | safe }});
+
+                // Volume
+                const volumeSeries = chart.addHistogramSeries({
+                    priceFormat: { type: 'volume' },
+                    priceScaleId: 'volume',
+                });
+                chart.priceScale('volume').applyOptions({
+                    scaleMargins: { top: 0.8, bottom: 0 },
+                });
+                volumeSeries.setData({{ volume_data_json | safe }});
+
+                // SMAs
+                const smaColors = { 20: '#ff7b72', 50: '#79c0ff', 100: '#d2a8ff', 200: '#7ee787' };
+                const smaStyles = { 20: 0, 50: 0, 100: 2, 200: 2 }; // 0=solid, 2=dotted
+                {% for period, data in sma_data.items() %}
+                (function() {
+                    var s = chart.addLineSeries({
+                        color: smaColors[{{ period }}],
+                        lineWidth: {{ period }} <= 50 ? 1.5 : 1,
+                        lineStyle: smaStyles[{{ period }}],
+                        crosshairMarkerVisible: false,
+                        lastValueVisible: false,
+                        priceLineVisible: false,
                     });
-                </script>
-            </div>
+                    s.setData({{ data | safe }});
+                })();
+                {% endfor %}
+
+                // Pivot line
+                {% if detail.vcp and detail.vcp.found and detail.vcp.pivot_price %}
+                const pivotLine = chart.addLineSeries({
+                    color: '#d29922',
+                    lineWidth: 1,
+                    lineStyle: 2,
+                    crosshairMarkerVisible: false,
+                    lastValueVisible: true,
+                    priceLineVisible: false,
+                    title: 'Pivot',
+                });
+                var chartData = {{ chart_data_json | safe }};
+                if (chartData.length > 0) {
+                    pivotLine.setData([
+                        { time: chartData[0].time, value: {{ detail.vcp.pivot_price }} },
+                        { time: chartData[chartData.length - 1].time, value: {{ detail.vcp.pivot_price }} },
+                    ]);
+                }
+                {% endif %}
+
+                chart.timeScale().fitContent();
+
+                // Resize handler
+                new ResizeObserver(() => {
+                    chart.applyOptions({ width: chartContainer.clientWidth });
+                }).observe(chartContainer);
+            </script>
         </div>
     </div>
 
