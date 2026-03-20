@@ -1,6 +1,26 @@
 /* ==========================================================================
-   VCP Screener — Custom styles (complements Tailwind)
+   VCP Screener — Design System + Custom Styles
    ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   Design Tokens
+   --------------------------------------------------------------------------- */
+
+:root {
+    --bg: #0a0e17;
+    --bg-card: #111827;
+    --bg-hover: #1f2937;
+    --bg-border: #1e293b;
+    --text: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --accent-blue: #3b82f6;
+    --accent-green: #22c55e;
+    --accent-red: #ef4444;
+    --accent-yellow: #f59e0b;
+    --accent-purple: #8b5cf6;
+    --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
 
 /* ---------------------------------------------------------------------------
    Regime Badges
@@ -18,54 +38,165 @@
 }
 
 .badge-bullish {
-    background-color: #1a472a;
-    border-color: #2ea043;
-    color: #2ea043;
+    background-color: rgba(34, 197, 94, 0.12);
+    border-color: rgba(34, 197, 94, 0.4);
+    color: var(--accent-green);
 }
 
 .badge-cautious {
-    background-color: #5c4a1e;
-    border-color: #d29922;
-    color: #d29922;
+    background-color: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.4);
+    color: var(--accent-yellow);
 }
 
 .badge-bearish {
-    background-color: #5c1a1a;
-    border-color: #f85149;
-    color: #f85149;
+    background-color: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: var(--accent-red);
 }
 
 .badge-unknown {
-    background-color: #2d333b;
-    border-color: #444c56;
-    color: #8b949e;
+    background-color: rgba(100, 116, 139, 0.12);
+    border-color: rgba(100, 116, 139, 0.4);
+    color: var(--text-muted);
 }
 
 /* Signal type badges */
 
 .badge-breakout {
-    background-color: #1a472a;
-    border-color: #2ea043;
-    color: #2ea043;
+    background-color: rgba(34, 197, 94, 0.12);
+    border-color: rgba(34, 197, 94, 0.4);
+    color: var(--accent-green);
 }
 
 .badge-near-breakout {
-    background-color: #3d2e00;
-    border-color: #d29922;
-    color: #d29922;
+    background-color: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.4);
+    color: var(--accent-yellow);
 }
 
 .badge-mr-buy {
-    background-color: #1c2a4a;
-    border-color: #58a6ff;
-    color: #58a6ff;
+    background-color: rgba(139, 92, 246, 0.12);
+    border-color: rgba(139, 92, 246, 0.4);
+    color: var(--accent-purple);
 }
 
 .badge-sell {
-    background-color: #5c1a1a;
-    border-color: #f85149;
-    color: #f85149;
+    background-color: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: var(--accent-red);
 }
+
+/* ---------------------------------------------------------------------------
+   Buttons
+   --------------------------------------------------------------------------- */
+
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #fff;
+    background-color: var(--accent-blue);
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    transition: background-color 150ms ease, box-shadow 150ms ease;
+    cursor: pointer;
+}
+
+.btn-primary:hover {
+    background-color: #2563eb;
+}
+
+.btn-primary:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent-blue);
+}
+
+.btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--accent-red);
+    background-color: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 0.375rem;
+    transition: background-color 150ms ease;
+    cursor: pointer;
+}
+
+.btn-danger:hover {
+    background-color: rgba(239, 68, 68, 0.2);
+}
+
+/* ---------------------------------------------------------------------------
+   Form Controls
+   --------------------------------------------------------------------------- */
+
+.form-label {
+    display: block;
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+}
+
+.form-input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text);
+    background-color: var(--bg);
+    border: 1px solid var(--bg-border);
+    border-radius: 0.375rem;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.form-input::placeholder {
+    color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Signal Cards
+   --------------------------------------------------------------------------- */
+
+.signal-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--bg-border);
+    border-left: 3px solid var(--bg-border);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    transition: background-color 150ms ease;
+}
+
+.signal-card:hover {
+    background-color: var(--bg-hover);
+}
+
+.signal-card-buy { border-left-color: var(--accent-green); }
+.signal-card-watch { border-left-color: var(--accent-yellow); }
+.signal-card-near { border-left-color: var(--accent-blue); }
+.signal-card-forming { border-left-color: var(--text-muted); }
+.signal-card-mr { border-left-color: var(--accent-purple); }
 
 /* ---------------------------------------------------------------------------
    Scrollbar (dark theme)
@@ -77,22 +208,22 @@
 }
 
 ::-webkit-scrollbar-track {
-    background: #0d1117;
+    background: var(--bg);
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #30363d;
+    background: var(--bg-border);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #484f58;
+    background: var(--text-muted);
 }
 
 /* Firefox */
 * {
     scrollbar-width: thin;
-    scrollbar-color: #30363d #0d1117;
+    scrollbar-color: var(--bg-border) var(--bg);
 }
 
 /* ---------------------------------------------------------------------------
@@ -104,8 +235,8 @@
     border-radius: 6px;
     font-size: 0.875rem;
     font-weight: 500;
-    color: #c9d1d9;
-    border: 1px solid #21262d;
+    color: var(--text);
+    border: 1px solid var(--bg-border);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     animation: toast-in 0.3s ease-out forwards;
     max-width: 320px;
@@ -113,18 +244,18 @@
 }
 
 .toast-success {
-    background-color: #1a472a;
-    border-color: #2ea043;
+    background-color: rgba(34, 197, 94, 0.12);
+    border-color: rgba(34, 197, 94, 0.4);
 }
 
 .toast-error {
-    background-color: #5c1a1a;
-    border-color: #f85149;
+    background-color: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.4);
 }
 
 .toast-info {
-    background-color: #161b22;
-    border-color: #58a6ff;
+    background-color: var(--bg-card);
+    border-color: rgba(59, 130, 246, 0.4);
 }
 
 .toast-removing {
@@ -166,16 +297,16 @@ thead th {
     position: sticky;
     top: 0;
     z-index: 10;
-    background-color: #161b22;
+    background-color: var(--bg-card);
 }
 
 tbody tr {
-    transition: background-color 0.15s ease;
-    border-bottom: 1px solid #21262d;
+    transition: background-color 150ms ease;
+    border-bottom: 1px solid var(--bg-border);
 }
 
 tbody tr:hover {
-    background-color: #1c2128;
+    background-color: var(--bg-hover);
 }
 
 /* Clickable rows */
@@ -188,15 +319,16 @@ tbody tr[data-href] {
    --------------------------------------------------------------------------- */
 
 .metric-card {
-    background-color: #161b22;
-    border: 1px solid #21262d;
+    background-color: var(--bg-card);
+    border: 1px solid var(--bg-border);
     border-radius: 8px;
     padding: 12px 16px;
+    box-shadow: var(--card-shadow);
 }
 
 .metric-label {
-    font-size: 0.75rem;
-    color: #8b949e;
+    font-size: 0.6875rem;
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
@@ -204,7 +336,8 @@ tbody tr[data-href] {
 .metric-value {
     font-size: 1.25rem;
     font-weight: 700;
-    color: #c9d1d9;
+    color: var(--text);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
 }
 
 /* ---------------------------------------------------------------------------
@@ -212,8 +345,13 @@ tbody tr[data-href] {
    --------------------------------------------------------------------------- */
 
 /* Green / red text for P&L */
-.text-positive { color: #2ea043; }
-.text-negative { color: #f85149; }
+.text-positive { color: var(--accent-green); }
+.text-negative { color: var(--accent-red); }
+
+/* Monospace numbers */
+.font-mono {
+    font-family: 'JetBrains Mono', ui-monospace, monospace !important;
+}
 
 /* HTMX loading indicator */
 .htmx-indicator {
@@ -230,12 +368,24 @@ tbody tr[data-href] {
     display: inline-block;
     width: 16px;
     height: 16px;
-    border: 2px solid #30363d;
-    border-top-color: #58a6ff;
+    border: 2px solid var(--bg-border);
+    border-top-color: var(--accent-blue);
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
 }
 
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+/* ---------------------------------------------------------------------------
+   Reduced Motion
+   --------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
 }

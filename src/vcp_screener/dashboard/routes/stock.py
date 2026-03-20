@@ -32,7 +32,7 @@ async def stock_detail_page(request: Request, symbol: str):
                 "low": round(float(row["low"]), 2),
                 "close": round(float(row["close"]), 2),
             })
-            color = "#2ea04380" if row["close"] >= row["open"] else "#f8514980"
+            color = "#22c55e80" if row["close"] >= row["open"] else "#ef444480"
             volume_data.append({
                 "time": ts,
                 "value": int(row["volume"]),

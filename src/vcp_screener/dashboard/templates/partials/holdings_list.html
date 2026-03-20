@@ -48,29 +48,29 @@
             <div class="flex items-center gap-2 flex-1 min-w-0">
                 {% if is_mr %}
                     <span class="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold"
-                          style="background: rgba(163,113,247,0.12); color: #a371f7; border: 1px solid rgba(163,113,247,0.3);">MR</span>
+                          style="background: rgba(139,92,246,0.12); color: #8b5cf6; border: 1px solid rgba(139,92,246,0.3);">MR</span>
                 {% else %}
                     <span class="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold"
-                          style="background: rgba(88,166,255,0.12); color: #58a6ff; border: 1px solid rgba(88,166,255,0.3);">VCP</span>
+                          style="background: rgba(59,130,246,0.12); color: #3b82f6; border: 1px solid rgba(59,130,246,0.3);">VCP</span>
                 {% endif %}
                 <a href="/stock/{{ h.symbol }}" class="text-accent-blue hover:underline font-medium">{{ h.symbol }}</a>
-                <span class="text-text-muted text-sm">{{ h.shares }} @ {{ "%.1f"|format(h.entry_price) }} &middot; {{ h.entry_date }}</span>
+                <span class="text-text-muted text-sm"><span class="font-mono">{{ h.shares }}</span> @ <span class="font-mono">{{ "%.1f"|format(h.entry_price) }}</span> &middot; {{ h.entry_date }}</span>
             </div>
             <!-- P&L -->
             <div class="flex items-center gap-4">
                 <div class="text-right">
-                    <span class="text-sm text-text">{{ "%.1f"|format(h.current_price) }}</span>
-                    <span class="text-sm font-semibold {% if pnl_positive %}text-positive{% else %}text-negative{% endif %} ml-2">
+                    <span class="text-sm text-text font-mono">{{ "%.1f"|format(h.current_price) }}</span>
+                    <span class="text-sm font-semibold font-mono {% if pnl_positive %}text-positive{% else %}text-negative{% endif %} ml-2">
                         {{ h.pnl|currency(0, sign=true) }} ({{ h.pnl_pct|signed(1) }}%)
                     </span>
-                    <div class="text-xs text-text-muted">Stop: {{ "%.1f"|format(effective_stop) }}</div>
+                    <div class="text-xs text-text-muted">Stop: <span class="font-mono">{{ "%.1f"|format(effective_stop) }}</span></div>
                 </div>
                 <!-- Sell button -->
                 <button hx-post="/api/portfolio/sell/{{ h.id }}"
                         hx-target="#portfolio-content"
                         hx-swap="innerHTML"
                         hx-confirm="Sell {{ h.symbol }}?"
-                        class="px-3 py-1.5 text-xs font-medium rounded border border-accent-red/40 text-accent-red bg-accent-red/10 hover:bg-accent-red/20 transition-colors">
+                        class="btn-danger">
                     Sell
                 </button>
             </div>

@@ -2,7 +2,7 @@
 {% block title %}Market — VCP Screener{% endblock %}
 {% block content %}
 <div class="max-w-5xl">
-  <h1 class="text-xl font-bold text-white mb-4">Market Overview</h1>
+  <h1 class="text-lg font-semibold text-text mb-4">Market Overview</h1>
 
   {% if not regime %}
     <div class="bg-bg-card border border-bg-border rounded-lg p-6 text-center text-text-muted">
@@ -11,17 +11,17 @@
   {% else %}
     {% set regime_name = regime.get("regime", "UNKNOWN") %}
     {% set regime_styles = {
-        "BULLISH":  {"bg": "#1a472a", "border": "#2ea043", "guidance": "Full position sizes — best conditions for VCP entries"},
-        "CAUTIOUS": {"bg": "#5c4a1e", "border": "#d29922", "guidance": "Reduce position sizes — be selective, top 10-15 only"},
-        "BEARISH":  {"bg": "#5c1a1a", "border": "#f85149", "guidance": "Avoid VCP entries — focus on MR signals and cash preservation"},
+        "BULLISH":  {"bg": "rgba(34,197,94,0.1)", "border": "rgba(34,197,94,0.3)", "guidance": "Full position sizes — best conditions for VCP entries"},
+        "CAUTIOUS": {"bg": "rgba(245,158,11,0.1)", "border": "rgba(245,158,11,0.3)", "guidance": "Reduce position sizes — be selective, top 10-15 only"},
+        "BEARISH":  {"bg": "rgba(239,68,68,0.1)", "border": "rgba(239,68,68,0.3)", "guidance": "Avoid VCP entries — focus on MR signals and cash preservation"},
     } %}
-    {% set style = regime_styles.get(regime_name, {"bg": "#2d333b", "border": "#444c56", "guidance": ""}) %}
+    {% set style = regime_styles.get(regime_name, {"bg": "rgba(100,116,139,0.1)", "border": "rgba(100,116,139,0.3)", "guidance": ""}) %}
 
     {# Regime banner #}
     <div class="rounded-lg p-3 mb-4"
          style="background:{{ style.bg }};border:1px solid {{ style.border }}">
-      <div class="text-lg font-bold text-white">Market: {{ regime_name }}</div>
-      <div class="text-sm text-text">{{ style.guidance }}</div>
+      <div class="text-lg font-bold text-text">Market: {{ regime_name }}</div>
+      <div class="text-sm text-text-secondary">{{ style.guidance }}</div>
     </div>
 
     {# Metrics row #}
@@ -77,12 +77,12 @@
     {% if nifty %}
     <div class="bg-bg-card border border-bg-border rounded-lg p-4 mb-4">
       <div class="flex items-center justify-between mb-3">
-        <h2 class="text-sm font-semibold text-white">Nifty 50</h2>
+        <h2 class="text-sm font-semibold text-text">Nifty 50</h2>
         <div class="flex gap-1" id="tf-buttons">
-          <button onclick="filterChart('3M')"  data-tf="3M"  class="px-3 py-1 text-xs rounded border border-bg-border text-text-muted hover:text-white hover:border-accent-blue transition-colors">3M</button>
-          <button onclick="filterChart('6M')"  data-tf="6M"  class="px-3 py-1 text-xs rounded border border-bg-border text-text-muted hover:text-white hover:border-accent-blue transition-colors">6M</button>
-          <button onclick="filterChart('1Y')"  data-tf="1Y"  class="px-3 py-1 text-xs rounded border border-accent-blue text-white transition-colors">1Y</button>
-          <button onclick="filterChart('2Y')"  data-tf="2Y"  class="px-3 py-1 text-xs rounded border border-bg-border text-text-muted hover:text-white hover:border-accent-blue transition-colors">2Y</button>
+          <button onclick="filterChart('3M')"  data-tf="3M"  class="px-3 py-1 text-xs rounded border border-bg-border text-text-muted hover:text-text hover:border-accent-blue transition-colors">3M</button>
+          <button onclick="filterChart('6M')"  data-tf="6M"  class="px-3 py-1 text-xs rounded border border-bg-border text-text-muted hover:text-text hover:border-accent-blue transition-colors">6M</button>
+          <button onclick="filterChart('1Y')"  data-tf="1Y"  class="px-3 py-1 text-xs rounded border border-accent-blue text-text transition-colors">1Y</button>
+          <button onclick="filterChart('2Y')"  data-tf="2Y"  class="px-3 py-1 text-xs rounded border border-bg-border text-text-muted hover:text-text hover:border-accent-blue transition-colors">2Y</button>
         </div>
       </div>
       <div style="height:400px">
@@ -100,10 +100,10 @@
         // Update button styles
         document.querySelectorAll('#tf-buttons button').forEach(btn => {
           if (btn.dataset.tf === tf) {
-            btn.classList.add('border-accent-blue', 'text-white');
+            btn.classList.add('border-accent-blue', 'text-text');
             btn.classList.remove('border-bg-border', 'text-text-muted');
           } else {
-            btn.classList.remove('border-accent-blue', 'text-white');
+            btn.classList.remove('border-accent-blue', 'text-text');
             btn.classList.add('border-bg-border', 'text-text-muted');
           }
         });
@@ -131,7 +131,7 @@
 
     {# Trading Rules #}
     <details class="bg-bg-card border border-bg-border rounded-lg mb-4">
-      <summary class="p-4 cursor-pointer text-sm font-semibold text-white hover:text-accent-blue">
+      <summary class="p-4 cursor-pointer text-sm font-semibold text-text hover:text-accent-blue">
         Trading Rules by Regime
       </summary>
       <div class="px-4 pb-4">

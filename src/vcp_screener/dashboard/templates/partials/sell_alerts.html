@@ -8,41 +8,41 @@
                     {% set is_critical = true %}
                 {% endif %}
             {% endfor %}
-            {% set border_color = "#f85149" if is_critical else "#d29922" %}
-            {% set bg_color = "#5c1a1a" if is_critical else "#5c4a1e" %}
+            {% set border_color = "#ef4444" if is_critical else "#f59e0b" %}
+            {% set bg_color = "rgba(239,68,68,0.08)" if is_critical else "rgba(245,158,11,0.08)" %}
             {% set is_mr = a.strategy == "mean_reversion" if a.strategy is defined else false %}
             {% set stop_display = a.effective_stop if a.effective_stop is defined and a.effective_stop else a.stop_loss %}
 
             <div class="rounded-r-lg px-4 py-3"
-                 style="border-left: 3px solid {{ border_color }}; background: {{ bg_color }}33;">
+                 style="border-left: 3px solid {{ border_color }}; background: {{ bg_color }};">
                 <div class="flex flex-wrap items-center gap-2 mb-1">
                     {% if is_mr %}
                         <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
-                              style="background: rgba(163,113,247,0.12); color: #a371f7; border: 1px solid rgba(163,113,247,0.3);">MR</span>
+                              style="background: rgba(139,92,246,0.12); color: #8b5cf6; border: 1px solid rgba(139,92,246,0.3);">MR</span>
                     {% endif %}
-                    <span class="font-semibold text-white">{{ a.symbol }}</span>
+                    <span class="font-semibold text-text">{{ a.symbol }}</span>
                     <span class="text-text-muted text-xs">#{{ a.position_id }}</span>
                     {% for t in a.alerts %}
                         <span class="px-2 py-0.5 rounded-full text-xs font-medium border"
-                              style="background: {{ bg_color }}; border-color: {{ border_color }}; color: white;">
+                              style="background: {{ 'rgba(239,68,68,0.12)' if is_critical else 'rgba(245,158,11,0.12)' }}; border-color: {{ border_color }}; color: {{ border_color }};">
                             {{ t }}
                         </span>
                     {% endfor %}
                 </div>
                 <div class="text-sm text-text-muted">
-                    Entry {{ "%.1f"|format(a.entry_price) }}
-                    &rarr; {{ "%.1f"|format(a.current_price) }}
+                    Entry <span class="font-mono">{{ "%.1f"|format(a.entry_price) }}</span>
+                    &rarr; <span class="font-mono">{{ "%.1f"|format(a.current_price) }}</span>
                     &middot;
-                    <span class="{% if a.gain_pct >= 0 %}text-positive{% else %}text-negative{% endif %}">{{ "%+.1f"|format(a.gain_pct) }}%</span>
-                    &middot; Hold {{ a.hold_days if a.hold_days is defined else 0 }}d
-                    &middot; Stop {{ "%.1f"|format(stop_display) }}
+                    <span class="font-mono {% if a.gain_pct >= 0 %}text-positive{% else %}text-negative{% endif %}">{{ "%+.1f"|format(a.gain_pct) }}%</span>
+                    &middot; Hold <span class="font-mono">{{ a.hold_days if a.hold_days is defined else 0 }}d</span>
+                    &middot; Stop <span class="font-mono">{{ "%.1f"|format(stop_display) }}</span>
                 </div>
             </div>
         {% endfor %}
     </div>
 {% else %}
     <div class="rounded-lg px-4 py-6 text-center text-sm font-medium"
-         style="background: #1a472a; border: 1px solid #2ea043; color: #2ea043;">
+         style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: #22c55e;">
         All positions OK — no sell alerts
     </div>
 {% endif %}

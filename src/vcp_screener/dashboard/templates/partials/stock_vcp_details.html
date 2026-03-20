@@ -2,7 +2,7 @@
 {% if detail and detail.vcp %}
 <div class="bg-bg-card border border-bg-border rounded-lg overflow-hidden">
     <div class="px-4 py-3 border-b border-bg-border flex items-center justify-between">
-        <h3 class="text-sm font-semibold text-white">VCP Pattern</h3>
+        <h3 class="text-sm font-semibold text-text">VCP Pattern</h3>
         {% if detail.vcp.found %}
             <span class="badge badge-bullish">FOUND</span>
         {% else %}
@@ -17,27 +17,27 @@
         <div class="grid grid-cols-2 gap-2 text-sm">
             <div class="flex justify-between">
                 <span class="text-text-muted">Contractions</span>
-                <span class="text-white font-medium">{{ detail.vcp.num_contractions }}</span>
+                <span class="text-text font-medium font-mono">{{ detail.vcp.num_contractions }}</span>
             </div>
             <div class="flex justify-between">
                 <span class="text-text-muted">Tightness</span>
-                <span class="text-white font-medium">{{ "%.2f"|format(detail.vcp.tightness_ratio) }}</span>
+                <span class="text-text font-medium font-mono">{{ "%.2f"|format(detail.vcp.tightness_ratio) }}</span>
             </div>
             <div class="flex justify-between">
                 <span class="text-text-muted">Vol Dry-Up</span>
-                <span class="text-white font-medium">{{ "%.0f"|format(detail.vcp.volume_dry_up_pct) }}%</span>
+                <span class="text-text font-medium font-mono">{{ "%.0f"|format(detail.vcp.volume_dry_up_pct) }}%</span>
             </div>
             <div class="flex justify-between">
                 <span class="text-text-muted">Duration</span>
-                <span class="text-white font-medium">{{ detail.vcp.base_duration_days }}d</span>
+                <span class="text-text font-medium font-mono">{{ detail.vcp.base_duration_days }}d</span>
             </div>
             <div class="flex justify-between">
                 <span class="text-text-muted">Base Depth</span>
-                <span class="text-white font-medium">{{ "%.1f"|format(detail.vcp.base_depth_pct) }}%</span>
+                <span class="text-text font-medium font-mono">{{ "%.1f"|format(detail.vcp.base_depth_pct) }}%</span>
             </div>
             <div class="flex justify-between">
                 <span class="text-text-muted">Pivot</span>
-                <span class="text-accent-blue font-medium">{{ "%.2f"|format(detail.vcp.pivot_price) }}</span>
+                <span class="text-accent-blue font-medium font-mono">{{ "%.2f"|format(detail.vcp.pivot_price) }}</span>
             </div>
         </div>
 
@@ -67,11 +67,11 @@
             <div class="grid grid-cols-2 gap-2">
                 <div class="flex justify-between">
                     <span class="text-text-muted">Vol Quiet</span>
-                    <span class="text-text">{{ "%.2f"|format(detail.vcp.volume_quietness) }}</span>
+                    <span class="text-text font-mono">{{ "%.2f"|format(detail.vcp.volume_quietness) }}</span>
                 </div>
                 <div class="flex justify-between">
                     <span class="text-text-muted">U/D Ratio</span>
-                    <span class="text-text">{{ "%.2f"|format(detail.vcp.ud_ratio) }}</span>
+                    <span class="text-text font-mono">{{ "%.2f"|format(detail.vcp.ud_ratio) }}</span>
                 </div>
             </div>
         </div>
@@ -83,12 +83,12 @@
             <div class="space-y-1">
                 {% for c in detail.vcp.contractions %}
                 <div class="flex items-center gap-2 text-xs">
-                    <span class="text-text-muted w-4">{{ loop.index }}</span>
-                    <div class="flex-1 bg-bg rounded h-4 overflow-hidden relative">
-                        <div class="h-full bg-accent-blue/30 rounded"
+                    <span class="text-text-muted w-4 font-mono">{{ loop.index }}</span>
+                    <div class="flex-1 bg-bg-hover rounded h-4 overflow-hidden relative">
+                        <div class="h-full bg-accent-blue/20 rounded"
                              style="width: {{ [c.range_pct * 5, 100]|min }}%"></div>
                     </div>
-                    <span class="text-text w-12 text-right">{{ "%.1f"|format(c.range_pct) }}%</span>
+                    <span class="text-text w-12 text-right font-mono">{{ "%.1f"|format(c.range_pct) }}%</span>
                 </div>
                 {% endfor %}
             </div>

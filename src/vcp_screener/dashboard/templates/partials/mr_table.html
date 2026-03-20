@@ -1,8 +1,8 @@
 <!-- MR Candidates table partial -->
 <div class="bg-bg-card border border-bg-border rounded-lg overflow-hidden">
     <div class="px-4 py-3 border-b border-bg-border flex items-center gap-2">
-        <h2 class="text-sm font-semibold text-white">MR Candidates</h2>
-        <span class="badge" style="background-color:#2d1a4a; border-color:#a371f7; color:#a371f7;">Mean Reversion</span>
+        <h2 class="text-sm font-semibold text-text">MR Candidates</h2>
+        <span class="badge badge-mr-buy">Mean Reversion</span>
         {% if mr_signals and mr_signals|length > 0 %}
             <span class="text-xs text-text-muted">({{ mr_signals|length }})</span>
         {% endif %}
@@ -24,16 +24,16 @@
             </thead>
             <tbody>
                 {% for item in mr_signals %}
-                <tr data-href="/stock/{{ item.symbol }}" class="hover:bg-[#1c2128] cursor-pointer">
+                <tr data-href="/stock/{{ item.symbol }}" class="hover:bg-bg-hover cursor-pointer">
                     <td class="px-3 py-2">
                         <a href="/stock/{{ item.symbol }}" class="text-accent-purple hover:underline font-medium">{{ item.symbol }}</a>
                     </td>
-                    <td class="px-3 py-2 text-right text-text">{{ "%.2f"|format(item.close) }}</td>
-                    <td class="px-3 py-2 text-right text-accent-red font-medium">{{ "%.1f"|format(item.rsi_2) }}</td>
-                    <td class="px-3 py-2 text-right text-text">{{ "%.2f"|format(item.ibs) }}</td>
-                    <td class="px-3 py-2 text-right text-accent-red">{{ "%.1f"|format(item.z_score) }}</td>
-                    <td class="px-3 py-2 text-right text-text">{{ "%.1f"|format(item.volume_ratio) }}</td>
-                    <td class="px-3 py-2 text-right text-accent-green">{{ "%.2f"|format(item.target_price) }}</td>
+                    <td class="px-3 py-2 text-right text-text font-mono">{{ "%.2f"|format(item.close) }}</td>
+                    <td class="px-3 py-2 text-right text-accent-red font-medium font-mono">{{ "%.1f"|format(item.rsi_2) }}</td>
+                    <td class="px-3 py-2 text-right text-text font-mono">{{ "%.2f"|format(item.ibs) }}</td>
+                    <td class="px-3 py-2 text-right text-accent-red font-mono">{{ "%.1f"|format(item.z_score) }}</td>
+                    <td class="px-3 py-2 text-right text-text font-mono">{{ "%.1f"|format(item.volume_ratio) }}</td>
+                    <td class="px-3 py-2 text-right text-accent-green font-mono">{{ "%.2f"|format(item.target_price) }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

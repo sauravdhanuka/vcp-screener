@@ -5,7 +5,7 @@
 <!-- Header row: title + regime badge + date + Run button -->
 <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
     <div class="flex items-center gap-4">
-        <h1 class="text-xl font-bold text-white">Screener</h1>
+        <h1 class="text-lg font-semibold text-text">Screener</h1>
         {% if results and results.regime %}
             {% set regime = results.regime|upper %}
             {% if regime == "BULLISH" %}
@@ -28,7 +28,7 @@
             hx-target="#screen-tables"
             hx-swap="innerHTML"
             hx-indicator="#screen-spinner"
-            class="px-4 py-2 bg-accent-blue/20 text-accent-blue border border-accent-blue/40 rounded-md text-sm font-medium hover:bg-accent-blue/30 transition-colors flex items-center gap-2">
+            class="btn-primary">
         <span id="screen-spinner" class="spinner htmx-indicator"></span>
         Run Screen Now
     </button>

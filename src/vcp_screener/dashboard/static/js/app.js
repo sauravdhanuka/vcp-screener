@@ -73,10 +73,10 @@ function switchTab(tabGroup, tabName) {
     // Update tab button styles
     document.querySelectorAll(`[data-tab-group="${tabGroup}"] [data-tab]`).forEach(btn => {
         if (btn.dataset.tab === tabName) {
-            btn.classList.add('border-accent-blue', 'text-white');
+            btn.classList.add('border-accent-blue', 'text-text');
             btn.classList.remove('border-transparent', 'text-text-muted');
         } else {
-            btn.classList.remove('border-accent-blue', 'text-white');
+            btn.classList.remove('border-accent-blue', 'text-text');
             btn.classList.add('border-transparent', 'text-text-muted');
         }
     });
@@ -119,8 +119,8 @@ function initNiftyChart(canvasId, data) {
                 {
                     label: 'Nifty 50',
                     data: closes,
-                    borderColor: '#c9d1d9',
-                    backgroundColor: 'rgba(201, 209, 217, 0.05)',
+                    borderColor: '#f1f5f9',
+                    backgroundColor: 'rgba(241, 245, 249, 0.05)',
                     borderWidth: 1.5,
                     pointRadius: 0,
                     fill: true,
@@ -129,7 +129,7 @@ function initNiftyChart(canvasId, data) {
                 {
                     label: 'SMA 50',
                     data: sma50,
-                    borderColor: '#79c0ff',
+                    borderColor: '#3b82f6',
                     borderWidth: 1,
                     pointRadius: 0,
                     borderDash: [],
@@ -137,7 +137,7 @@ function initNiftyChart(canvasId, data) {
                 {
                     label: 'SMA 200',
                     data: sma200,
-                    borderColor: '#d2a8ff',
+                    borderColor: '#8b5cf6',
                     borderWidth: 1,
                     pointRadius: 0,
                     borderDash: [4, 2],
@@ -155,35 +155,35 @@ function initNiftyChart(canvasId, data) {
                 legend: {
                     position: 'top',
                     labels: {
-                        color: '#8b949e',
+                        color: '#64748b',
                         usePointStyle: true,
                         pointStyle: 'line',
                         font: { size: 11 },
                     },
                 },
                 tooltip: {
-                    backgroundColor: '#161b22',
-                    titleColor: '#c9d1d9',
-                    bodyColor: '#8b949e',
-                    borderColor: '#21262d',
+                    backgroundColor: '#111827',
+                    titleColor: '#f1f5f9',
+                    bodyColor: '#94a3b8',
+                    borderColor: '#1e293b',
                     borderWidth: 1,
                 },
             },
             scales: {
                 x: {
                     ticks: {
-                        color: '#8b949e',
+                        color: '#64748b',
                         maxTicksLimit: 12,
                         font: { size: 10 },
                     },
-                    grid: { color: '#21262d' },
+                    grid: { color: '#1e293b' },
                 },
                 y: {
                     ticks: {
-                        color: '#8b949e',
+                        color: '#64748b',
                         font: { size: 10 },
                     },
-                    grid: { color: '#21262d' },
+                    grid: { color: '#1e293b' },
                 },
             },
         },

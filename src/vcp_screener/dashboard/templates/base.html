@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}VCP Screener{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -11,16 +14,20 @@
             theme: {
                 extend: {
                     colors: {
-                        bg: { DEFAULT: '#0d1117', card: '#161b22', border: '#21262d' },
-                        text: { DEFAULT: '#c9d1d9', muted: '#8b949e' },
+                        bg: { DEFAULT: '#0a0e17', card: '#111827', hover: '#1f2937', border: '#1e293b' },
+                        text: { DEFAULT: '#f1f5f9', secondary: '#94a3b8', muted: '#64748b' },
                         accent: {
-                            green: '#2ea043',
-                            red: '#f85149',
-                            yellow: '#d29922',
-                            blue: '#58a6ff',
-                            purple: '#a371f7',
+                            green: '#22c55e',
+                            red: '#ef4444',
+                            yellow: '#f59e0b',
+                            blue: '#3b82f6',
+                            purple: '#8b5cf6',
                         },
-                    }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+                    },
                 }
             }
         }
@@ -29,11 +36,11 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <link rel="stylesheet" href="/static/css/app.css">
 </head>
-<body hx-boost="true" class="bg-bg text-text min-h-screen flex">
+<body hx-boost="true" class="bg-bg text-text font-sans text-sm leading-relaxed min-h-screen flex">
 
     <!-- Mobile menu toggle -->
     <button id="sidebar-toggle"
-            class="fixed top-3 left-3 z-50 p-2 rounded-md bg-bg-card border border-bg-border text-text-muted hover:text-white lg:hidden"
+            class="fixed top-3 left-3 z-50 p-2 rounded-md bg-bg-card border border-bg-border text-text-muted hover:text-text lg:hidden"
             onclick="document.getElementById('sidebar').classList.toggle('-translate-x-full')">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
@@ -44,19 +51,20 @@
     <nav id="sidebar"
          class="fixed lg:static w-56 bg-bg-card border-r border-bg-border min-h-screen p-4 flex-shrink-0 flex flex-col
                 z-40 transition-transform duration-200 -translate-x-full lg:translate-x-0">
-        <div class="text-lg font-bold mb-6 text-white">VCP Screener</div>
+        <div class="text-base font-semibold tracking-tight text-text mb-6">VCP Screener</div>
         <div class="flex flex-col gap-1 flex-1">
             {% set nav_items = [
-                ('/', 'Screener', 'screener'),
-                ('/signals', 'Signals', 'signals'),
-                ('/portfolio', 'Portfolio', 'portfolio'),
-                ('/watchlist', 'Watchlist', 'watchlist'),
-                ('/market', 'Market', 'market'),
+                ('/', 'Screener', 'screener', '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/>'),
+                ('/signals', 'Signals', 'signals', '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>'),
+                ('/portfolio', 'Portfolio', 'portfolio', '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" points="3.27 6.96 12 12.01 20.73 6.96"/><line stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" x1="12" y1="22.08" x2="12" y2="12"/>'),
+                ('/watchlist', 'Watchlist', 'watchlist', '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" cx="12" cy="12" r="3"/>'),
+                ('/market', 'Market', 'market', '<polyline stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" points="17 6 23 6 23 12"/>'),
             ] %}
-            {% for href, label, id in nav_items %}
+            {% for href, label, id, icon in nav_items %}
             <a href="{{ href }}"
-               class="px-3 py-2 rounded-md text-sm font-medium transition-colors
-                      {% if active_nav == id %}bg-bg-border text-white{% else %}text-text-muted hover:text-white hover:bg-bg-border/50{% endif %}">
+               class="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors
+                      {% if active_nav == id %}bg-accent-blue/10 text-accent-blue{% else %}text-text-secondary hover:text-text hover:bg-bg-hover{% endif %}">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">{{ icon | safe }}</svg>
                 {{ label }}
             </a>
             {% endfor %}
