@@ -55,13 +55,13 @@
                         </td>
                         <td class="px-3 py-2 text-text-muted">{{ t.entry_date }}</td>
                         <td class="px-3 py-2 text-text-muted">{{ t.exit_date }}</td>
-                        <td class="px-3 py-2 text-right">{{ "%.1f"|format(t.entry_price) }}</td>
-                        <td class="px-3 py-2 text-right">{{ "%.1f"|format(t.exit_price) }}</td>
-                        <td class="px-3 py-2 text-right">{{ t.shares }}</td>
-                        <td class="px-3 py-2 text-right font-medium {% if (t.pnl or 0) >= 0 %}text-positive{% else %}text-negative{% endif %}">
+                        <td class="px-3 py-2 text-right font-mono">{{ "%.1f"|format(t.entry_price) }}</td>
+                        <td class="px-3 py-2 text-right font-mono">{{ "%.1f"|format(t.exit_price) }}</td>
+                        <td class="px-3 py-2 text-right font-mono">{{ t.shares }}</td>
+                        <td class="px-3 py-2 text-right font-medium font-mono {% if (t.pnl or 0) >= 0 %}text-positive{% else %}text-negative{% endif %}">
                             {{ (t.pnl or 0)|currency(0, sign=true) }}
                         </td>
-                        <td class="px-3 py-2 text-right font-medium {% if (t.pnl_pct or 0) >= 0 %}text-positive{% else %}text-negative{% endif %}">
+                        <td class="px-3 py-2 text-right font-medium font-mono {% if (t.pnl_pct or 0) >= 0 %}text-positive{% else %}text-negative{% endif %}">
                             {{ "%+.1f"|format(t.pnl_pct or 0) }}%
                         </td>
                         <td class="px-3 py-2 text-text-muted text-xs">{{ t.exit_reason or "-" }}</td>

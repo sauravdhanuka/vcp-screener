@@ -21,10 +21,10 @@
             <div class="flex items-center gap-2 flex-1 min-w-0">
                 {% if is_mr %}
                     <span class="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold"
-                          style="background: rgba(163,113,247,0.12); color: #a371f7; border: 1px solid rgba(163,113,247,0.3);">MR</span>
+                          style="background: rgba(139,92,246,0.12); color: #8b5cf6; border: 1px solid rgba(139,92,246,0.3);">MR</span>
                 {% else %}
                     <span class="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold"
-                          style="background: rgba(88,166,255,0.12); color: #58a6ff; border: 1px solid rgba(88,166,255,0.3);">VCP</span>
+                          style="background: rgba(59,130,246,0.12); color: #3b82f6; border: 1px solid rgba(59,130,246,0.3);">VCP</span>
                 {% endif %}
                 <a href="/stock/{{ item.symbol }}" class="text-accent-blue hover:underline font-medium">{{ item.symbol }}</a>
                 {% if item.notes %}
@@ -36,17 +36,17 @@
             <div class="flex items-center gap-4">
                 <div class="text-sm text-right space-x-2">
                     {% if item.current_price %}
-                        <span class="text-text">{{ "%.1f"|format(item.current_price) }}</span>
+                        <span class="text-text font-mono">{{ "%.1f"|format(item.current_price) }}</span>
                     {% endif %}
                     {% if item.change_pct is defined and item.change_pct is not none %}
-                        <span class="{% if item.change_pct >= 0 %}text-positive{% else %}text-negative{% endif %}">
+                        <span class="font-mono {% if item.change_pct >= 0 %}text-positive{% else %}text-negative{% endif %}">
                             {{ "%+.1f"|format(item.change_pct) }}%
                         </span>
                     {% endif %}
                     {% if item.pivot_price and item.current_price %}
                         {% set dist = (item.pivot_price - item.current_price) / item.pivot_price * 100 if item.pivot_price > 0 else 0 %}
                         {% if dist > 0 %}
-                            <span class="text-text-muted text-xs">{{ "%.1f"|format(dist) }}% to pivot</span>
+                            <span class="text-text-muted text-xs font-mono">{{ "%.1f"|format(dist) }}% to pivot</span>
                         {% else %}
                             <span class="text-positive text-xs">Above pivot</span>
                         {% endif %}

@@ -10,10 +10,11 @@
   {% else %}
     {# Regime banner #}
     {% set regime = signals[0].get("market_regime", "UNKNOWN") %}
-    {% set regime_bg = {"BULLISH": "#1a472a", "CAUTIOUS": "#5c4a1e", "BEARISH": "#5c1a1a"} %}
+    {% set regime_bg = {"BULLISH": "rgba(34,197,94,0.1)", "CAUTIOUS": "rgba(245,158,11,0.1)", "BEARISH": "rgba(239,68,68,0.1)"} %}
+    {% set regime_border = {"BULLISH": "rgba(34,197,94,0.3)", "CAUTIOUS": "rgba(245,158,11,0.3)", "BEARISH": "rgba(239,68,68,0.3)"} %}
     {% set regime_text = {"BULLISH": "Full positions", "CAUTIOUS": "Reduce size", "BEARISH": "Avoid VCP entries"} %}
     <div class="rounded-lg text-center font-semibold text-sm py-2 px-4 mb-4"
-         style="background:{{ regime_bg.get(regime, '#2d333b') }}">
+         style="background:{{ regime_bg.get(regime, 'rgba(100,116,139,0.1)') }};border:1px solid {{ regime_border.get(regime, 'rgba(100,116,139,0.3)') }}">
       Market: {{ regime }} &mdash; {{ regime_text.get(regime, "") }}
     </div>
 
@@ -28,24 +29,24 @@
     <div class="mb-4">
       <h3 class="text-sm font-semibold text-text mb-2">Breakout Confirmed ({{ buy_signals | length }})</h3>
       {% for s in buy_signals %}
-      <div class="bg-bg-card border border-bg-border rounded-lg p-3 mb-2 flex items-start justify-between gap-3">
+      <div class="signal-card signal-card-buy">
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="badge" style="background:#1a472a;border-color:#2ea043;color:#2ea043">BUY</span>
-            <a href="/stock/{{ s.symbol }}" class="font-bold text-white hover:text-accent-blue transition-colors">{{ s.symbol }}</a>
+            <span class="badge badge-breakout">BUY</span>
+            <a href="/stock/{{ s.symbol }}" class="font-bold text-text hover:text-accent-blue transition-colors">{{ s.symbol }}</a>
             <span class="text-text-muted text-xs">VCP {{ s.vcp_score|round(0)|int }} &middot; RS {{ s.rs_percentile|round(0)|int }}</span>
           </div>
           <div class="text-sm mt-1">
-            <span class="text-accent-green">Entry &#8377;{{ "{:,.0f}".format(s.entry_price) }}</span> &middot;
-            Stop &#8377;{{ "{:,.0f}".format(s.stop_price) }} &middot;
-            {{ s.shares }} shares &middot;
-            &#8377;{{ "{:,.0f}".format(s.cost) }}
+            <span class="text-accent-green font-mono">Entry &#8377;{{ "{:,.0f}".format(s.entry_price) }}</span> &middot;
+            Stop <span class="font-mono">&#8377;{{ "{:,.0f}".format(s.stop_price) }}</span> &middot;
+            <span class="font-mono">{{ s.shares }}</span> shares &middot;
+            <span class="font-mono">&#8377;{{ "{:,.0f}".format(s.cost) }}</span>
           </div>
           <div class="text-xs text-text-muted mt-1">{{ s.reason }}</div>
         </div>
         <button hx-post="/api/signals/{{ s.symbol }}/add-watchlist"
                 hx-swap="outerHTML"
-                class="shrink-0 px-2 py-1 text-xs rounded border border-bg-border text-text-muted hover:text-white hover:border-accent-blue transition-colors">
+                class="shrink-0 px-2 py-1 text-xs rounded border border-bg-border text-text-muted hover:text-text hover:border-accent-blue transition-colors">
           + WL
         </button>
       </div>
@@ -58,22 +59,22 @@
     <div class="mb-4">
       <h3 class="text-sm font-semibold text-text mb-2">Above Pivot &mdash; Needs Volume ({{ watch_signals | length }})</h3>
       {% for s in watch_signals %}
-      <div class="bg-bg-card border border-bg-border rounded-lg p-3 mb-2 flex items-start justify-between gap-3">
+      <div class="signal-card signal-card-watch">
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="badge" style="background:#5c4a1e;border-color:#d29922;color:#d29922">WATCH VOL</span>
-            <a href="/stock/{{ s.symbol }}" class="font-bold text-white hover:text-accent-blue transition-colors">{{ s.symbol }}</a>
+            <span class="badge badge-near-breakout">WATCH VOL</span>
+            <a href="/stock/{{ s.symbol }}" class="font-bold text-text hover:text-accent-blue transition-colors">{{ s.symbol }}</a>
             <span class="text-text-muted text-xs">VCP {{ s.vcp_score|round(0)|int }} &middot; RS {{ s.rs_percentile|round(0)|int }} &middot; Vol {{ s.vol_ratio|round(1) }}x</span>
           </div>
           <div class="text-sm mt-1">
-            Close &#8377;{{ "{:,.0f}".format(s.close) }} &middot;
-            Pivot &#8377;{{ "{:,.0f}".format(s.pivot) }}
+            Close <span class="font-mono">&#8377;{{ "{:,.0f}".format(s.close) }}</span> &middot;
+            Pivot <span class="font-mono">&#8377;{{ "{:,.0f}".format(s.pivot) }}</span>
           </div>
           <div class="text-xs text-text-muted mt-1">{{ s.reason }}</div>
         </div>
         <button hx-post="/api/signals/{{ s.symbol }}/add-watchlist"
                 hx-swap="outerHTML"
-                class="shrink-0 px-2 py-1 text-xs rounded border border-bg-border text-text-muted hover:text-white hover:border-accent-blue transition-colors">
+                class="shrink-0 px-2 py-1 text-xs rounded border border-bg-border text-text-muted hover:text-text hover:border-accent-blue transition-colors">
           + WL
         </button>
       </div>
@@ -86,22 +87,22 @@
     <div class="mb-4">
       <h3 class="text-sm font-semibold text-text mb-2">Near Pivot &mdash; Watchlist ({{ near_signals | length }})</h3>
       {% for s in near_signals %}
-      <div class="bg-bg-card border border-bg-border rounded-lg p-3 mb-2 flex items-start justify-between gap-3">
+      <div class="signal-card signal-card-near">
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="badge" style="background:#1a3a5c;border-color:#58a6ff;color:#58a6ff">NEAR PIVOT</span>
-            <a href="/stock/{{ s.symbol }}" class="font-bold text-white hover:text-accent-blue transition-colors">{{ s.symbol }}</a>
+            <span class="badge" style="background:rgba(59,130,246,0.12);border-color:rgba(59,130,246,0.4);color:#3b82f6">NEAR PIVOT</span>
+            <a href="/stock/{{ s.symbol }}" class="font-bold text-text hover:text-accent-blue transition-colors">{{ s.symbol }}</a>
             <span class="text-text-muted text-xs">VCP {{ s.vcp_score|round(0)|int }} &middot; RS {{ s.rs_percentile|round(0)|int }} &middot; {{ s.distance_to_pivot_pct|round(1) }}% away</span>
           </div>
           <div class="text-sm mt-1">
-            Close &#8377;{{ "{:,.0f}".format(s.close) }} &middot;
-            Pivot &#8377;{{ "{:,.0f}".format(s.pivot) }}
+            Close <span class="font-mono">&#8377;{{ "{:,.0f}".format(s.close) }}</span> &middot;
+            Pivot <span class="font-mono">&#8377;{{ "{:,.0f}".format(s.pivot) }}</span>
           </div>
           <div class="text-xs text-text-muted mt-1">{{ s.reason }}</div>
         </div>
         <button hx-post="/api/signals/{{ s.symbol }}/add-watchlist"
                 hx-swap="outerHTML"
-                class="shrink-0 px-2 py-1 text-xs rounded border border-bg-border text-text-muted hover:text-white hover:border-accent-blue transition-colors">
+                class="shrink-0 px-2 py-1 text-xs rounded border border-bg-border text-text-muted hover:text-text hover:border-accent-blue transition-colors">
           + WL
         </button>
       </div>
@@ -116,17 +117,17 @@
         Forming ({{ forming_signals | length }} stocks)
       </summary>
       {% for s in forming_signals %}
-      <div class="bg-bg-card border border-bg-border rounded-lg p-3 mb-2 flex items-start justify-between gap-3">
+      <div class="signal-card signal-card-forming">
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="badge" style="background:#2d333b;border-color:#444c56;color:#8b949e">FORMING</span>
-            <a href="/stock/{{ s.symbol }}" class="font-bold text-white hover:text-accent-blue transition-colors">{{ s.symbol }}</a>
+            <span class="badge badge-unknown">FORMING</span>
+            <a href="/stock/{{ s.symbol }}" class="font-bold text-text hover:text-accent-blue transition-colors">{{ s.symbol }}</a>
             <span class="text-text-muted text-xs">VCP {{ s.vcp_score|round(0)|int }} &middot; RS {{ s.rs_percentile|round(0)|int }} &middot; {{ s.distance_to_pivot_pct|round(1) }}% away</span>
           </div>
         </div>
         <button hx-post="/api/signals/{{ s.symbol }}/add-watchlist"
                 hx-swap="outerHTML"
-                class="shrink-0 px-2 py-1 text-xs rounded border border-bg-border text-text-muted hover:text-white hover:border-accent-blue transition-colors">
+                class="shrink-0 px-2 py-1 text-xs rounded border border-bg-border text-text-muted hover:text-text hover:border-accent-blue transition-colors">
           + WL
         </button>
       </div>
@@ -146,7 +147,7 @@
 {% elif view == "mr" %}
   {# -- MR Signals --------------------------------------------------------- #}
   <div class="rounded-lg text-center font-semibold text-sm py-2 px-4 mb-4"
-       style="background:#3d1f5c">
+       style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3)">
     Mean Reversion &mdash; Oversold bounce candidates (RSI(2) &lt; 5, IBS &lt; 0.2)
   </div>
 
@@ -156,24 +157,24 @@
     </div>
   {% else %}
     {% for s in mr_signals %}
-    <div class="bg-bg-card border border-bg-border rounded-lg p-3 mb-2 flex items-start justify-between gap-3">
+    <div class="signal-card signal-card-mr">
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 flex-wrap">
-          <span class="badge" style="background:#3d1f5c;border-color:#a371f7;color:#a371f7">MR BUY</span>
-          <a href="/stock/{{ s.symbol }}" class="font-bold text-white hover:text-accent-blue transition-colors">{{ s.symbol }}</a>
-          <span class="text-text-muted text-xs">RSI(2) {{ s.rsi_2|round(1) }} &middot; IBS {{ s.ibs|round(2) }} &middot; Z {{ s.z_score|round(1) }}</span>
+          <span class="badge badge-mr-buy">MR BUY</span>
+          <a href="/stock/{{ s.symbol }}" class="font-bold text-text hover:text-accent-blue transition-colors">{{ s.symbol }}</a>
+          <span class="text-text-muted text-xs">RSI(2) <span class="font-mono">{{ s.rsi_2|round(1) }}</span> &middot; IBS <span class="font-mono">{{ s.ibs|round(2) }}</span> &middot; Z <span class="font-mono">{{ s.z_score|round(1) }}</span></span>
         </div>
         <div class="text-sm mt-1">
-          <span class="text-accent-purple">Entry &#8377;{{ "{:,.0f}".format(s.entry_price) }}</span> &middot;
-          Stop &#8377;{{ "{:,.0f}".format(s.stop_price) }} &middot;
-          Target &#8377;{{ "{:,.0f}".format(s.target_price) }} &middot;
-          {{ s.shares }} shares
+          <span class="text-accent-purple font-mono">Entry &#8377;{{ "{:,.0f}".format(s.entry_price) }}</span> &middot;
+          Stop <span class="font-mono">&#8377;{{ "{:,.0f}".format(s.stop_price) }}</span> &middot;
+          Target <span class="font-mono">&#8377;{{ "{:,.0f}".format(s.target_price) }}</span> &middot;
+          <span class="font-mono">{{ s.shares }}</span> shares
         </div>
         <div class="text-xs text-text-muted mt-1">{{ s.reason }}</div>
       </div>
       <button hx-post="/api/signals/{{ s.symbol }}/add-watchlist"
               hx-swap="outerHTML"
-              class="shrink-0 px-2 py-1 text-xs rounded border border-bg-border text-text-muted hover:text-white hover:border-accent-blue transition-colors">
+              class="shrink-0 px-2 py-1 text-xs rounded border border-bg-border text-text-muted hover:text-text hover:border-accent-blue transition-colors">
         + WL
       </button>
     </div>

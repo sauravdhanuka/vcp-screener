@@ -1,7 +1,7 @@
 <!-- VCP Candidates table partial -->
 <div class="bg-bg-card border border-bg-border rounded-lg overflow-hidden">
     <div class="px-4 py-3 border-b border-bg-border flex items-center gap-2">
-        <h2 class="text-sm font-semibold text-white">VCP Candidates</h2>
+        <h2 class="text-sm font-semibold text-text">VCP Candidates</h2>
         {% if results and results.data %}
             <span class="text-xs text-text-muted">({{ results.data|length }})</span>
         {% endif %}
@@ -27,30 +27,30 @@
             </thead>
             <tbody>
                 {% for item in results.data %}
-                <tr data-href="/stock/{{ item.symbol }}" class="hover:bg-[#1c2128] cursor-pointer">
+                <tr data-href="/stock/{{ item.symbol }}" class="hover:bg-bg-hover cursor-pointer">
                     <td class="px-3 py-2 text-text-muted">{{ item.rank }}</td>
                     <td class="px-3 py-2">
                         <a href="/stock/{{ item.symbol }}" class="text-accent-blue hover:underline font-medium">{{ item.symbol }}</a>
                     </td>
-                    <td class="px-3 py-2 text-right text-text">{{ "%.2f"|format(item.close) }}</td>
-                    <td class="px-3 py-2 text-right font-medium
+                    <td class="px-3 py-2 text-right text-text font-mono">{{ "%.2f"|format(item.close) }}</td>
+                    <td class="px-3 py-2 text-right font-medium font-mono
                         {% if item.vcp_score and item.vcp_score >= 70 %}text-accent-green
                         {% elif item.vcp_score and item.vcp_score >= 50 %}text-accent-yellow
                         {% else %}text-text{% endif %}">
                         {{ "%.0f"|format(item.vcp_score) if item.vcp_score else "-" }}
                     </td>
-                    <td class="px-3 py-2 text-right font-medium
+                    <td class="px-3 py-2 text-right font-medium font-mono
                         {% if item.rs_percentile and item.rs_percentile >= 70 %}text-accent-green
                         {% elif item.rs_percentile and item.rs_percentile >= 50 %}text-accent-yellow
                         {% else %}text-text{% endif %}">
                         {{ "%.0f"|format(item.rs_percentile) if item.rs_percentile else "-" }}
                     </td>
-                    <td class="px-3 py-2 text-right text-text">{{ "%.2f"|format(item.pivot) if item.pivot else "-" }}</td>
-                    <td class="px-3 py-2 text-right text-text">{{ "%.1f"|format(item.depth_pct) if item.depth_pct else "-" }}</td>
-                    <td class="px-3 py-2 text-right text-text">{{ item.contractions if item.contractions else "-" }}</td>
-                    <td class="px-3 py-2 text-right text-text">{{ "%.2f"|format(item.tightness) if item.tightness else "-" }}</td>
-                    <td class="px-3 py-2 text-right text-text">{{ "%.0f"|format(item.vol_dry_up) if item.vol_dry_up else "-" }}</td>
-                    <td class="px-3 py-2 text-right text-text-muted">{{ item.days if item.days else "-" }}</td>
+                    <td class="px-3 py-2 text-right text-text font-mono">{{ "%.2f"|format(item.pivot) if item.pivot else "-" }}</td>
+                    <td class="px-3 py-2 text-right text-text font-mono">{{ "%.1f"|format(item.depth_pct) if item.depth_pct else "-" }}</td>
+                    <td class="px-3 py-2 text-right text-text font-mono">{{ item.contractions if item.contractions else "-" }}</td>
+                    <td class="px-3 py-2 text-right text-text font-mono">{{ "%.2f"|format(item.tightness) if item.tightness else "-" }}</td>
+                    <td class="px-3 py-2 text-right text-text font-mono">{{ "%.0f"|format(item.vol_dry_up) if item.vol_dry_up else "-" }}</td>
+                    <td class="px-3 py-2 text-right text-text-muted font-mono">{{ item.days if item.days else "-" }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
