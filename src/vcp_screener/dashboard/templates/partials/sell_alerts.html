@@ -1,0 +1,48 @@
+<!-- Sell alerts partial -->
+{% if alerts and alerts|length > 0 %}
+    <div class="space-y-3">
+        {% for a in alerts %}
+            {% set is_critical = false %}
+            {% for t in a.alerts %}
+                {% if "STOP" in t or "PROTECT" in t or "FAILED" in t or "TIMEOUT" in t %}
+                    {% set is_critical = true %}
+                {% endif %}
+            {% endfor %}
+            {% set border_color = "#f85149" if is_critical else "#d29922" %}
+            {% set bg_color = "#5c1a1a" if is_critical else "#5c4a1e" %}
+            {% set is_mr = a.strategy == "mean_reversion" if a.strategy is defined else false %}
+            {% set stop_display = a.effective_stop if a.effective_stop is defined and a.effective_stop else a.stop_loss %}
+
+            <div class="rounded-r-lg px-4 py-3"
+                 style="border-left: 3px solid {{ border_color }}; background: {{ bg_color }}33;">
+                <div class="flex flex-wrap items-center gap-2 mb-1">
+                    {% if is_mr %}
+                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
+                              style="background: rgba(163,113,247,0.12); color: #a371f7; border: 1px solid rgba(163,113,247,0.3);">MR</span>
+                    {% endif %}
+                    <span class="font-semibold text-white">{{ a.symbol }}</span>
+                    <span class="text-text-muted text-xs">#{{ a.position_id }}</span>
+                    {% for t in a.alerts %}
+                        <span class="px-2 py-0.5 rounded-full text-xs font-medium border"
+                              style="background: {{ bg_color }}; border-color: {{ border_color }}; color: white;">
+                            {{ t }}
+                        </span>
+                    {% endfor %}
+                </div>
+                <div class="text-sm text-text-muted">
+                    Entry {{ "%.1f"|format(a.entry_price) }}
+                    &rarr; {{ "%.1f"|format(a.current_price) }}
+                    &middot;
+                    <span class="{% if a.gain_pct >= 0 %}text-positive{% else %}text-negative{% endif %}">{{ "%+.1f"|format(a.gain_pct) }}%</span>
+                    &middot; Hold {{ a.hold_days if a.hold_days is defined else 0 }}d
+                    &middot; Stop {{ "%.1f"|format(stop_display) }}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="rounded-lg px-4 py-6 text-center text-sm font-medium"
+         style="background: #1a472a; border: 1px solid #2ea043; color: #2ea043;">
+        All positions OK — no sell alerts
+    </div>
+{% endif %}

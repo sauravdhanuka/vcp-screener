@@ -1,0 +1,105 @@
+<!-- VCP Pattern Details partial — used on stock detail page -->
+{% if detail and detail.vcp %}
+<div class="bg-bg-card border border-bg-border rounded-lg overflow-hidden">
+    <div class="px-4 py-3 border-b border-bg-border flex items-center justify-between">
+        <h3 class="text-sm font-semibold text-white">VCP Pattern</h3>
+        {% if detail.vcp.found %}
+            <span class="badge badge-bullish">FOUND</span>
+        {% else %}
+            <span class="badge badge-unknown">NOT FOUND</span>
+        {% endif %}
+    </div>
+
+    {% if detail.vcp.found %}
+    <div class="px-4 py-3 space-y-3">
+
+        <!-- Key metrics grid -->
+        <div class="grid grid-cols-2 gap-2 text-sm">
+            <div class="flex justify-between">
+                <span class="text-text-muted">Contractions</span>
+                <span class="text-white font-medium">{{ detail.vcp.num_contractions }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-text-muted">Tightness</span>
+                <span class="text-white font-medium">{{ "%.2f"|format(detail.vcp.tightness_ratio) }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-text-muted">Vol Dry-Up</span>
+                <span class="text-white font-medium">{{ "%.0f"|format(detail.vcp.volume_dry_up_pct) }}%</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-text-muted">Duration</span>
+                <span class="text-white font-medium">{{ detail.vcp.base_duration_days }}d</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-text-muted">Base Depth</span>
+                <span class="text-white font-medium">{{ "%.1f"|format(detail.vcp.base_depth_pct) }}%</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-text-muted">Pivot</span>
+                <span class="text-accent-blue font-medium">{{ "%.2f"|format(detail.vcp.pivot_price) }}</span>
+            </div>
+        </div>
+
+        <!-- Boolean flags -->
+        <div class="border-t border-bg-border pt-2 space-y-1.5 text-sm">
+            <div class="flex items-center gap-2">
+                {% if detail.vcp.is_monotonic %}
+                    <span class="text-accent-green text-base leading-none">&#10003;</span>
+                {% else %}
+                    <span class="text-accent-red text-base leading-none">&#10007;</span>
+                {% endif %}
+                <span class="text-text-muted">Monotonic contractions</span>
+            </div>
+            <div class="flex items-center gap-2">
+                {% if detail.vcp.shakeout_detected %}
+                    <span class="text-accent-yellow text-base leading-none">&#9888;</span>
+                    <span class="text-accent-yellow">Shakeout detected</span>
+                {% else %}
+                    <span class="text-accent-green text-base leading-none">&#10003;</span>
+                    <span class="text-text-muted">No shakeout</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Advanced metrics -->
+        <div class="border-t border-bg-border pt-2 text-sm">
+            <div class="grid grid-cols-2 gap-2">
+                <div class="flex justify-between">
+                    <span class="text-text-muted">Vol Quiet</span>
+                    <span class="text-text">{{ "%.2f"|format(detail.vcp.volume_quietness) }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-text-muted">U/D Ratio</span>
+                    <span class="text-text">{{ "%.2f"|format(detail.vcp.ud_ratio) }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contractions breakdown -->
+        {% if detail.vcp.contractions and detail.vcp.contractions|length > 0 %}
+        <div class="border-t border-bg-border pt-2">
+            <p class="text-xs text-text-muted uppercase tracking-wider mb-2">Contraction Ranges</p>
+            <div class="space-y-1">
+                {% for c in detail.vcp.contractions %}
+                <div class="flex items-center gap-2 text-xs">
+                    <span class="text-text-muted w-4">{{ loop.index }}</span>
+                    <div class="flex-1 bg-bg rounded h-4 overflow-hidden relative">
+                        <div class="h-full bg-accent-blue/30 rounded"
+                             style="width: {{ [c.range_pct * 5, 100]|min }}%"></div>
+                    </div>
+                    <span class="text-text w-12 text-right">{{ "%.1f"|format(c.range_pct) }}%</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+    {% else %}
+    <div class="px-4 py-4 text-sm text-text-muted">
+        {{ detail.vcp.get("reason", "No VCP pattern detected in this stock.") }}
+    </div>
+    {% endif %}
+</div>
+{% endif %}

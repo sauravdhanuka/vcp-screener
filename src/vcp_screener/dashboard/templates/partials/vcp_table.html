@@ -1,0 +1,64 @@
+<!-- VCP Candidates table partial -->
+<div class="bg-bg-card border border-bg-border rounded-lg overflow-hidden">
+    <div class="px-4 py-3 border-b border-bg-border flex items-center gap-2">
+        <h2 class="text-sm font-semibold text-white">VCP Candidates</h2>
+        {% if results and results.data %}
+            <span class="text-xs text-text-muted">({{ results.data|length }})</span>
+        {% endif %}
+    </div>
+
+    {% if results and results.data and results.data|length > 0 %}
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-xs text-text-muted uppercase tracking-wider">
+                    <th class="px-3 py-2">#</th>
+                    <th class="px-3 py-2">Symbol</th>
+                    <th class="px-3 py-2 text-right">Close</th>
+                    <th class="px-3 py-2 text-right">VCP</th>
+                    <th class="px-3 py-2 text-right">RS</th>
+                    <th class="px-3 py-2 text-right">Pivot</th>
+                    <th class="px-3 py-2 text-right">Depth%</th>
+                    <th class="px-3 py-2 text-right">Contr</th>
+                    <th class="px-3 py-2 text-right">Tight</th>
+                    <th class="px-3 py-2 text-right">VolDry%</th>
+                    <th class="px-3 py-2 text-right">Days</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in results.data %}
+                <tr data-href="/stock/{{ item.symbol }}" class="hover:bg-[#1c2128] cursor-pointer">
+                    <td class="px-3 py-2 text-text-muted">{{ item.rank }}</td>
+                    <td class="px-3 py-2">
+                        <a href="/stock/{{ item.symbol }}" class="text-accent-blue hover:underline font-medium">{{ item.symbol }}</a>
+                    </td>
+                    <td class="px-3 py-2 text-right text-text">{{ "%.2f"|format(item.close) }}</td>
+                    <td class="px-3 py-2 text-right font-medium
+                        {% if item.vcp_score and item.vcp_score >= 70 %}text-accent-green
+                        {% elif item.vcp_score and item.vcp_score >= 50 %}text-accent-yellow
+                        {% else %}text-text{% endif %}">
+                        {{ "%.0f"|format(item.vcp_score) if item.vcp_score else "-" }}
+                    </td>
+                    <td class="px-3 py-2 text-right font-medium
+                        {% if item.rs_percentile and item.rs_percentile >= 70 %}text-accent-green
+                        {% elif item.rs_percentile and item.rs_percentile >= 50 %}text-accent-yellow
+                        {% else %}text-text{% endif %}">
+                        {{ "%.0f"|format(item.rs_percentile) if item.rs_percentile else "-" }}
+                    </td>
+                    <td class="px-3 py-2 text-right text-text">{{ "%.2f"|format(item.pivot) if item.pivot else "-" }}</td>
+                    <td class="px-3 py-2 text-right text-text">{{ "%.1f"|format(item.depth_pct) if item.depth_pct else "-" }}</td>
+                    <td class="px-3 py-2 text-right text-text">{{ item.contractions if item.contractions else "-" }}</td>
+                    <td class="px-3 py-2 text-right text-text">{{ "%.2f"|format(item.tightness) if item.tightness else "-" }}</td>
+                    <td class="px-3 py-2 text-right text-text">{{ "%.0f"|format(item.vol_dry_up) if item.vol_dry_up else "-" }}</td>
+                    <td class="px-3 py-2 text-right text-text-muted">{{ item.days if item.days else "-" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="px-4 py-8 text-center text-text-muted text-sm">
+        No screening data available. Run a screen to see VCP candidates.
+    </div>
+    {% endif %}
+</div>

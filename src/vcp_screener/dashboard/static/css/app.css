@@ -1,0 +1,241 @@
+/* ==========================================================================
+   VCP Screener — Custom styles (complements Tailwind)
+   ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   Regime Badges
+   --------------------------------------------------------------------------- */
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    border: 1px solid;
+}
+
+.badge-bullish {
+    background-color: #1a472a;
+    border-color: #2ea043;
+    color: #2ea043;
+}
+
+.badge-cautious {
+    background-color: #5c4a1e;
+    border-color: #d29922;
+    color: #d29922;
+}
+
+.badge-bearish {
+    background-color: #5c1a1a;
+    border-color: #f85149;
+    color: #f85149;
+}
+
+.badge-unknown {
+    background-color: #2d333b;
+    border-color: #444c56;
+    color: #8b949e;
+}
+
+/* Signal type badges */
+
+.badge-breakout {
+    background-color: #1a472a;
+    border-color: #2ea043;
+    color: #2ea043;
+}
+
+.badge-near-breakout {
+    background-color: #3d2e00;
+    border-color: #d29922;
+    color: #d29922;
+}
+
+.badge-mr-buy {
+    background-color: #1c2a4a;
+    border-color: #58a6ff;
+    color: #58a6ff;
+}
+
+.badge-sell {
+    background-color: #5c1a1a;
+    border-color: #f85149;
+    color: #f85149;
+}
+
+/* ---------------------------------------------------------------------------
+   Scrollbar (dark theme)
+   --------------------------------------------------------------------------- */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0d1117;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #484f58;
+}
+
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #30363d #0d1117;
+}
+
+/* ---------------------------------------------------------------------------
+   Toast Notifications
+   --------------------------------------------------------------------------- */
+
+.toast {
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #c9d1d9;
+    border: 1px solid #21262d;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    animation: toast-in 0.3s ease-out forwards;
+    max-width: 320px;
+    word-break: break-word;
+}
+
+.toast-success {
+    background-color: #1a472a;
+    border-color: #2ea043;
+}
+
+.toast-error {
+    background-color: #5c1a1a;
+    border-color: #f85149;
+}
+
+.toast-info {
+    background-color: #161b22;
+    border-color: #58a6ff;
+}
+
+.toast-removing {
+    animation: toast-out 0.3s ease-in forwards;
+}
+
+@keyframes toast-in {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes toast-out {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   Table Styles
+   --------------------------------------------------------------------------- */
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #161b22;
+}
+
+tbody tr {
+    transition: background-color 0.15s ease;
+    border-bottom: 1px solid #21262d;
+}
+
+tbody tr:hover {
+    background-color: #1c2128;
+}
+
+/* Clickable rows */
+tbody tr[data-href] {
+    cursor: pointer;
+}
+
+/* ---------------------------------------------------------------------------
+   Metric Cards
+   --------------------------------------------------------------------------- */
+
+.metric-card {
+    background-color: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 8px;
+    padding: 12px 16px;
+}
+
+.metric-label {
+    font-size: 0.75rem;
+    color: #8b949e;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.metric-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #c9d1d9;
+}
+
+/* ---------------------------------------------------------------------------
+   Utility
+   --------------------------------------------------------------------------- */
+
+/* Green / red text for P&L */
+.text-positive { color: #2ea043; }
+.text-negative { color: #f85149; }
+
+/* HTMX loading indicator */
+.htmx-indicator {
+    display: none;
+}
+
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+    display: inline-block;
+}
+
+/* Spinner */
+.spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #30363d;
+    border-top-color: #58a6ff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}

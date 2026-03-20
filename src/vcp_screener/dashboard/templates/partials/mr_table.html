@@ -1,0 +1,47 @@
+<!-- MR Candidates table partial -->
+<div class="bg-bg-card border border-bg-border rounded-lg overflow-hidden">
+    <div class="px-4 py-3 border-b border-bg-border flex items-center gap-2">
+        <h2 class="text-sm font-semibold text-white">MR Candidates</h2>
+        <span class="badge" style="background-color:#2d1a4a; border-color:#a371f7; color:#a371f7;">Mean Reversion</span>
+        {% if mr_signals and mr_signals|length > 0 %}
+            <span class="text-xs text-text-muted">({{ mr_signals|length }})</span>
+        {% endif %}
+    </div>
+
+    {% if mr_signals and mr_signals|length > 0 %}
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-xs text-text-muted uppercase tracking-wider">
+                    <th class="px-3 py-2">Symbol</th>
+                    <th class="px-3 py-2 text-right">Close</th>
+                    <th class="px-3 py-2 text-right">RSI(2)</th>
+                    <th class="px-3 py-2 text-right">IBS</th>
+                    <th class="px-3 py-2 text-right">Z</th>
+                    <th class="px-3 py-2 text-right">VolR</th>
+                    <th class="px-3 py-2 text-right">Target</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in mr_signals %}
+                <tr data-href="/stock/{{ item.symbol }}" class="hover:bg-[#1c2128] cursor-pointer">
+                    <td class="px-3 py-2">
+                        <a href="/stock/{{ item.symbol }}" class="text-accent-purple hover:underline font-medium">{{ item.symbol }}</a>
+                    </td>
+                    <td class="px-3 py-2 text-right text-text">{{ "%.2f"|format(item.close) }}</td>
+                    <td class="px-3 py-2 text-right text-accent-red font-medium">{{ "%.1f"|format(item.rsi_2) }}</td>
+                    <td class="px-3 py-2 text-right text-text">{{ "%.2f"|format(item.ibs) }}</td>
+                    <td class="px-3 py-2 text-right text-accent-red">{{ "%.1f"|format(item.z_score) }}</td>
+                    <td class="px-3 py-2 text-right text-text">{{ "%.1f"|format(item.volume_ratio) }}</td>
+                    <td class="px-3 py-2 text-right text-accent-green">{{ "%.2f"|format(item.target_price) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="px-4 py-8 text-center text-text-muted text-sm">
+        No MR candidates. Mean Reversion signals appear in bearish regimes.
+    </div>
+    {% endif %}
+</div>
