@@ -1,0 +1,52 @@
+<!-- MR Details partial — placeholder for stock detail page -->
+{% if mr_data %}
+<div class="bg-bg-card border border-bg-border rounded-lg overflow-hidden">
+    <div class="px-4 py-3 border-b border-bg-border flex items-center gap-2">
+        <h3 class="text-sm font-semibold text-white">Mean Reversion</h3>
+        <span class="badge" style="background-color:#2d1a4a; border-color:#a371f7; color:#a371f7;">MR Signal</span>
+    </div>
+    <div class="px-4 py-3 space-y-2 text-sm">
+        <div class="grid grid-cols-2 gap-2">
+            <div class="flex justify-between">
+                <span class="text-text-muted">RSI(2)</span>
+                <span class="text-accent-red font-medium">{{ "%.1f"|format(mr_data.rsi_2) }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-text-muted">IBS</span>
+                <span class="text-text font-medium">{{ "%.2f"|format(mr_data.ibs) }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-text-muted">Z-Score</span>
+                <span class="text-accent-red font-medium">{{ "%.1f"|format(mr_data.z_score) }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-text-muted">Vol Ratio</span>
+                <span class="text-text font-medium">{{ "%.1f"|format(mr_data.volume_ratio) }}</span>
+            </div>
+        </div>
+        <div class="border-t border-bg-border pt-2 grid grid-cols-2 gap-2">
+            <div class="flex justify-between">
+                <span class="text-text-muted">Entry</span>
+                <span class="text-accent-blue">{{ "%.2f"|format(mr_data.entry_price) }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-text-muted">Target</span>
+                <span class="text-accent-green">{{ "%.2f"|format(mr_data.target_price) }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-text-muted">Stop</span>
+                <span class="text-accent-red">{{ "%.2f"|format(mr_data.stop_price) }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-text-muted">Shares</span>
+                <span class="text-text">{{ mr_data.shares }}</span>
+            </div>
+        </div>
+        {% if mr_data.reason %}
+        <div class="border-t border-bg-border pt-2">
+            <p class="text-xs text-text-muted">{{ mr_data.reason }}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

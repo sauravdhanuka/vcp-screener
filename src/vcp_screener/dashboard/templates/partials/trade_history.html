@@ -1,0 +1,78 @@
+<!-- Trade history partial -->
+{% if closed_trades and closed_trades|length > 0 %}
+    {% set wins = [] %}
+    {% set total_pnl = namespace(val=0) %}
+    {% for t in closed_trades %}
+        {% set total_pnl.val = total_pnl.val + (t.pnl or 0) %}
+        {% if (t.pnl or 0) > 0 %}
+            {% set _ = wins.append(1) %}
+        {% endif %}
+    {% endfor %}
+    {% set win_rate = (wins|length / closed_trades|length * 100) if closed_trades|length > 0 else 0 %}
+
+    <!-- Summary metrics -->
+    <div class="grid grid-cols-3 gap-3 mb-6">
+        <div class="metric-card">
+            <div class="metric-label">Total Trades</div>
+            <div class="metric-value">{{ closed_trades|length }}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Win Rate</div>
+            <div class="metric-value {% if win_rate >= 50 %}text-positive{% else %}text-negative{% endif %}">
+                {{ "%.0f"|format(win_rate) }}%
+            </div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Total P&L</div>
+            <div class="metric-value {% if total_pnl.val >= 0 %}text-positive{% else %}text-negative{% endif %}">
+                {{ total_pnl.val|currency(0, sign=true) }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Trades table -->
+    <div class="bg-bg-card border border-bg-border rounded-lg overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-xs text-text-muted uppercase tracking-wider">
+                        <th class="px-3 py-2">Symbol</th>
+                        <th class="px-3 py-2">Entry Date</th>
+                        <th class="px-3 py-2">Exit Date</th>
+                        <th class="px-3 py-2 text-right">Entry</th>
+                        <th class="px-3 py-2 text-right">Exit</th>
+                        <th class="px-3 py-2 text-right">Shares</th>
+                        <th class="px-3 py-2 text-right">P&L</th>
+                        <th class="px-3 py-2 text-right">P&L%</th>
+                        <th class="px-3 py-2">Reason</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in closed_trades %}
+                    <tr>
+                        <td class="px-3 py-2">
+                            <a href="/stock/{{ t.symbol }}" class="text-accent-blue hover:underline font-medium">{{ t.symbol }}</a>
+                        </td>
+                        <td class="px-3 py-2 text-text-muted">{{ t.entry_date }}</td>
+                        <td class="px-3 py-2 text-text-muted">{{ t.exit_date }}</td>
+                        <td class="px-3 py-2 text-right">{{ "%.1f"|format(t.entry_price) }}</td>
+                        <td class="px-3 py-2 text-right">{{ "%.1f"|format(t.exit_price) }}</td>
+                        <td class="px-3 py-2 text-right">{{ t.shares }}</td>
+                        <td class="px-3 py-2 text-right font-medium {% if (t.pnl or 0) >= 0 %}text-positive{% else %}text-negative{% endif %}">
+                            {{ (t.pnl or 0)|currency(0, sign=true) }}
+                        </td>
+                        <td class="px-3 py-2 text-right font-medium {% if (t.pnl_pct or 0) >= 0 %}text-positive{% else %}text-negative{% endif %}">
+                            {{ "%+.1f"|format(t.pnl_pct or 0) }}%
+                        </td>
+                        <td class="px-3 py-2 text-text-muted text-xs">{{ t.exit_reason or "-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% else %}
+    <div class="bg-bg-card border border-bg-border rounded-lg px-4 py-8 text-center text-text-muted text-sm">
+        No closed trades yet.
+    </div>
+{% endif %}

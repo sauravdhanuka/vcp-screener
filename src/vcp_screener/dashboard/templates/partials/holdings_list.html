@@ -1,0 +1,84 @@
+<!-- Holdings list partial -->
+{% if holdings and holdings|length > 0 %}
+    {% set total_cost = holdings|map(attribute='cost')|sum %}
+    {% set total_value = holdings|map(attribute='market_value')|sum %}
+    {% set total_pnl = total_value - total_cost %}
+    {% if total_cost > 0 %}
+        {% set total_return = ((total_value / total_cost) - 1) * 100 %}
+    {% else %}
+        {% set total_return = 0 %}
+    {% endif %}
+
+    <!-- Summary metrics -->
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+        <div class="metric-card">
+            <div class="metric-label">Positions</div>
+            <div class="metric-value">{{ holdings|length }}/{{ max_positions }}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Invested</div>
+            <div class="metric-value">{{ total_cost|currency(0) }}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Market Value</div>
+            <div class="metric-value">{{ total_value|currency(0) }}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">P&L</div>
+            <div class="metric-value {% if total_pnl >= 0 %}text-positive{% else %}text-negative{% endif %}">
+                {{ total_pnl|currency(0, sign=true) }}
+            </div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Return</div>
+            <div class="metric-value {% if total_return >= 0 %}text-positive{% else %}text-negative{% endif %}">
+                {{ total_return|signed(1) }}%
+            </div>
+        </div>
+    </div>
+
+    <!-- Holdings list -->
+    <div class="bg-bg-card border border-bg-border rounded-lg overflow-hidden">
+        {% for h in holdings %}
+            {% set pnl_positive = h.pnl >= 0 %}
+            {% set is_mr = h.strategy == "mean_reversion" %}
+            {% set effective_stop = [h.stop_loss, h.trailing_stop or 0]|max %}
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-4 py-3 {% if not loop.last %}border-b border-bg-border{% endif %}">
+            <!-- Info -->
+            <div class="flex items-center gap-2 flex-1 min-w-0">
+                {% if is_mr %}
+                    <span class="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold"
+                          style="background: rgba(163,113,247,0.12); color: #a371f7; border: 1px solid rgba(163,113,247,0.3);">MR</span>
+                {% else %}
+                    <span class="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold"
+                          style="background: rgba(88,166,255,0.12); color: #58a6ff; border: 1px solid rgba(88,166,255,0.3);">VCP</span>
+                {% endif %}
+                <a href="/stock/{{ h.symbol }}" class="text-accent-blue hover:underline font-medium">{{ h.symbol }}</a>
+                <span class="text-text-muted text-sm">{{ h.shares }} @ {{ "%.1f"|format(h.entry_price) }} &middot; {{ h.entry_date }}</span>
+            </div>
+            <!-- P&L -->
+            <div class="flex items-center gap-4">
+                <div class="text-right">
+                    <span class="text-sm text-text">{{ "%.1f"|format(h.current_price) }}</span>
+                    <span class="text-sm font-semibold {% if pnl_positive %}text-positive{% else %}text-negative{% endif %} ml-2">
+                        {{ h.pnl|currency(0, sign=true) }} ({{ h.pnl_pct|signed(1) }}%)
+                    </span>
+                    <div class="text-xs text-text-muted">Stop: {{ "%.1f"|format(effective_stop) }}</div>
+                </div>
+                <!-- Sell button -->
+                <button hx-post="/api/portfolio/sell/{{ h.id }}"
+                        hx-target="#portfolio-content"
+                        hx-swap="innerHTML"
+                        hx-confirm="Sell {{ h.symbol }}?"
+                        class="px-3 py-1.5 text-xs font-medium rounded border border-accent-red/40 text-accent-red bg-accent-red/10 hover:bg-accent-red/20 transition-colors">
+                    Sell
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="bg-bg-card border border-bg-border rounded-lg px-4 py-8 text-center text-text-muted text-sm">
+        No open positions. Use the "New Position" tab to record a buy.
+    </div>
+{% endif %}

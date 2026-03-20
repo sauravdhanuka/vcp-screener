@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Watchlist — VCP Screener{% endblock %}
+{% block content %}
+
+<!-- Header -->
+<div class="flex items-center gap-4 mb-6">
+    <h1 class="text-xl font-bold text-white">Watchlist</h1>
+</div>
+
+<!-- Add stock form (collapsible) -->
+<details class="mb-6 bg-bg-card border border-bg-border rounded-lg">
+    <summary class="px-4 py-3 cursor-pointer text-sm font-medium text-text-muted hover:text-white transition-colors select-none">
+        + Add Stock to Watchlist
+    </summary>
+    <div class="px-4 pb-4 pt-2 border-t border-bg-border">
+        <form hx-post="/api/watchlist/add"
+              hx-target="#watchlist-content"
+              hx-swap="innerHTML"
+              class="grid grid-cols-2 sm:grid-cols-5 gap-3 items-end">
+            <div>
+                <label class="block text-xs text-text-muted uppercase tracking-wider mb-1" for="wl-symbol">Symbol</label>
+                <input type="text" name="symbol" id="wl-symbol" required
+                       placeholder="e.g. RELIANCE"
+                       class="w-full px-3 py-2 rounded-md bg-bg border border-bg-border text-text text-sm
+                              focus:border-accent-blue focus:outline-none focus:ring-1 focus:ring-accent-blue/50">
+            </div>
+            <div>
+                <label class="block text-xs text-text-muted uppercase tracking-wider mb-1" for="wl-num">Watchlist #</label>
+                <input type="number" name="list_number" id="wl-num"
+                       min="1" max="10" value="1"
+                       class="w-full px-3 py-2 rounded-md bg-bg border border-bg-border text-text text-sm
+                              focus:border-accent-blue focus:outline-none focus:ring-1 focus:ring-accent-blue/50">
+            </div>
+            <div>
+                <label class="block text-xs text-text-muted uppercase tracking-wider mb-1" for="wl-strategy">Strategy</label>
+                <select name="strategy" id="wl-strategy"
+                        class="w-full px-3 py-2 rounded-md bg-bg border border-bg-border text-text text-sm
+                               focus:border-accent-blue focus:outline-none focus:ring-1 focus:ring-accent-blue/50">
+                    <option value="vcp">VCP</option>
+                    <option value="mean_reversion">Mean Reversion</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-text-muted uppercase tracking-wider mb-1" for="wl-notes">Notes</label>
+                <input type="text" name="notes" id="wl-notes"
+                       placeholder="Optional"
+                       class="w-full px-3 py-2 rounded-md bg-bg border border-bg-border text-text text-sm
+                              focus:border-accent-blue focus:outline-none focus:ring-1 focus:ring-accent-blue/50">
+            </div>
+            <div>
+                <button type="submit"
+                        class="w-full px-4 py-2 bg-accent-blue/20 text-accent-blue border border-accent-blue/40 rounded-md text-sm font-medium
+                               hover:bg-accent-blue/30 transition-colors flex items-center justify-center gap-2">
+                    <span class="htmx-indicator spinner"></span>
+                    Add
+                </button>
+            </div>
+        </form>
+    </div>
+</details>
+
+<!-- Watchlist number tabs -->
+{% if watchlist_numbers and watchlist_numbers|length > 1 %}
+<div data-tab-group="watchlist" class="mb-4">
+    <div class="flex gap-1 border-b border-bg-border">
+        {% for num in watchlist_numbers %}
+        <button data-tab="wl-{{ num }}"
+                hx-get="/partials/watchlist/{{ num }}" hx-target="#watchlist-content" hx-swap="innerHTML"
+                onclick="switchTab('watchlist', 'wl-{{ num }}')"
+                class="px-4 py-2 text-sm font-medium border-b-2 transition-colors
+                       {% if num == active_list %}border-accent-blue text-white{% else %}border-transparent text-text-muted hover:text-white{% endif %}">
+            Watchlist #{{ num }}
+        </button>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Watchlist content -->
+<div id="watchlist-content">
+    {% include "partials/watchlist_items.html" %}
+</div>
+
+{% endblock %}

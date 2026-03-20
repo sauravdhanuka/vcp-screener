@@ -1,85 +1,69 @@
-"""Streamlit dashboard entry point — professional layout with single-page rendering."""
+"""FastAPI dashboard entry point — replaces Streamlit app."""
 
-import streamlit as st
+from contextlib import asynccontextmanager
+from pathlib import Path
 
-st.set_page_config(
-    page_title="VCP Screener",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
-
-# ── Custom CSS ──
-st.markdown("""
-<style>
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-header {visibility: hidden;}
-.block-container { padding-top: 1rem; padding-bottom: 0rem; }
-
-[data-testid="stMetric"] {
-    background-color: #161b22;
-    border: 1px solid #21262d;
-    border-radius: 8px;
-    padding: 12px 16px;
-}
-[data-testid="stMetricLabel"] {
-    font-size: 0.75rem; color: #8b949e;
-    text-transform: uppercase; letter-spacing: 0.05em;
-}
-[data-testid="stDataFrame"] { border: 1px solid #21262d; border-radius: 8px; }
-.stButton > button { border-radius: 6px; font-weight: 600; }
-hr { border-color: #21262d; }
-
-/* Sidebar nav styling */
-[data-testid="stSidebar"] [data-testid="stRadio"] > label { font-weight: 600; }
-</style>
-""", unsafe_allow_html=True)
+from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from vcp_screener.db import init_db
-init_db()
 
-# ── Sidebar navigation (only active page renders) ──
-st.sidebar.markdown("### VCP Screener")
+DASHBOARD_DIR = Path(__file__).parent
+templates = Jinja2Templates(directory=str(DASHBOARD_DIR / "templates"))
 
-page = st.sidebar.radio(
-    "Navigate",
-    ["Screener", "Signals", "Portfolio", "Watchlist", "Market"],
-    label_visibility="collapsed",
+
+# Custom Jinja2 filters for currency/number formatting
+def _currency(value, decimals=0, sign=False):
+    """Format number as currency with commas. sign=True adds +/- prefix."""
+    try:
+        fmt = f"{value:+,.{decimals}f}" if sign else f"{value:,.{decimals}f}"
+        return fmt
+    except (ValueError, TypeError):
+        return str(value)
+
+
+def _signed(value, decimals=1):
+    """Format number with +/- sign and commas."""
+    try:
+        return f"{value:+,.{decimals}f}"
+    except (ValueError, TypeError):
+        return str(value)
+
+
+templates.env.filters["currency"] = _currency
+templates.env.filters["signed"] = _signed
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(title="VCP Screener", lifespan=lifespan)
+app.mount("/static", StaticFiles(directory=str(DASHBOARD_DIR / "static")), name="static")
+
+# Import and include routers
+from vcp_screener.dashboard.routes import (  # noqa: E402
+    screener,
+    stock,
+    signals,
+    portfolio,
+    watchlist,
+    market,
+    api,
 )
 
-st.sidebar.markdown("---")
+app.include_router(screener.router)
+app.include_router(stock.router)
+app.include_router(signals.router)
+app.include_router(portfolio.router)
+app.include_router(watchlist.router)
+app.include_router(market.router)
+app.include_router(api.router)
 
-# Data status
-try:
-    from vcp_screener.db import get_session
-    from vcp_screener.models.screening_result import ScreeningResult
-    from vcp_screener.models.stock import Stock
-    from sqlalchemy import func
 
-    session = get_session()
-    try:
-        stock_count = session.query(func.count(Stock.symbol)).filter(Stock.is_active == True).scalar() or 0
-        last_screen = session.query(func.max(ScreeningResult.run_date)).scalar()
-        st.sidebar.caption(f"{stock_count:,} stocks · Last screen: {last_screen or 'Never'}")
-    finally:
-        session.close()
-except Exception:
-    pass
-
-# ── Render only the active page ──
-if page == "Screener":
-    from vcp_screener.dashboard.views import screener_page
-    screener_page.render()
-elif page == "Signals":
-    from vcp_screener.dashboard.views import signals_page
-    signals_page.render()
-elif page == "Portfolio":
-    from vcp_screener.dashboard.views import portfolio_page
-    portfolio_page.render()
-elif page == "Watchlist":
-    from vcp_screener.dashboard.views import watchlist_page
-    watchlist_page.render()
-elif page == "Market":
-    from vcp_screener.dashboard.views import market_page
-    market_page.render()
+@app.get("/health")
+async def health():
+    return {"status": "ok"}

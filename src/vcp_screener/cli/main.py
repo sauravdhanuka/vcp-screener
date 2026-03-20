@@ -672,12 +672,13 @@ def backtest_run(start, end, capital, positions):
 # ── Dashboard command ──────────────────────────────────────────
 
 @cli.command("dashboard")
-def launch_dashboard():
-    """Launch the Streamlit web dashboard."""
-    import subprocess
-    app_path = str(__import__("vcp_screener").__file__).replace("__init__.py", "") + "dashboard/app.py"
-    console.print("[bold green]Launching Streamlit dashboard...[/]")
-    subprocess.run(["streamlit", "run", app_path])
+@click.option("--host", default="0.0.0.0", help="Bind address")
+@click.option("--port", default=8000, type=int, help="Port number")
+def launch_dashboard(host, port):
+    """Launch the FastAPI web dashboard."""
+    import uvicorn
+    console.print(f"[bold green]Launching dashboard at http://{host}:{port}[/]")
+    uvicorn.run("vcp_screener.dashboard.app:app", host=host, port=port)
 
 
 # ── Alert commands ─────────────────────────────────────────────

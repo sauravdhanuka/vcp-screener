@@ -1,0 +1,8 @@
+{# Regime badge partial — renders a colored regime pill.
+   Pass `regime_name` (BULLISH | CAUTIOUS | BEARISH | UNKNOWN). #}
+{% set badge_class = {
+    'BULLISH': 'badge-bullish',
+    'CAUTIOUS': 'badge-cautious',
+    'BEARISH': 'badge-bearish',
+}.get(regime_name, 'badge-unknown') %}
+<span class="badge {{ badge_class }}">{{ regime_name }}</span>

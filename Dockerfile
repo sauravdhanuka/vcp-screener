@@ -24,6 +24,6 @@ RUN pip install --no-cache-dir -e .
 # Data directory
 RUN mkdir -p /app/data
 
-EXPOSE 8501
+EXPOSE 8000
 
-CMD ["streamlit", "run", "src/vcp_screener/dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
+CMD ["uvicorn", "vcp_screener.dashboard.app:app", "--host", "0.0.0.0", "--port", "8000"]

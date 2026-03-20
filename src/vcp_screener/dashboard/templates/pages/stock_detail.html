@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}{{ symbol }} — VCP Screener{% endblock %}
+{% block content %}
+
+<!-- Breadcrumb -->
+<div class="flex items-center gap-2 text-sm text-text-muted mb-4">
+    <a href="/" class="hover:text-white transition-colors">Screener</a>
+    <span>/</span>
+    <span class="text-white font-medium">{{ symbol }}</span>
+</div>
+
+{% if detail %}
+
+<!-- Metrics row -->
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+    <div class="metric-card">
+        <div class="metric-label">Close</div>
+        <div class="metric-value">{{ "%.2f"|format(detail.close) }}</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">RS Percentile</div>
+        <div class="metric-value
+            {% if detail.rs_percentile and detail.rs_percentile >= 70 %} text-accent-green
+            {% elif detail.rs_percentile and detail.rs_percentile >= 50 %} text-accent-yellow
+            {% else %} text-text{% endif %}">
+            {{ "%.0f"|format(detail.rs_percentile) if detail.rs_percentile else "-" }}
+        </div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">VCP Score</div>
+        <div class="metric-value
+            {% if detail.vcp_score and detail.vcp_score >= 70 %} text-accent-green
+            {% elif detail.vcp_score and detail.vcp_score >= 50 %} text-accent-yellow
+            {% else %} text-text{% endif %}">
+            {{ "%.0f"|format(detail.vcp_score) if detail.vcp_score else "-" }}
+        </div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Pivot</div>
+        <div class="metric-value">
+            {% if detail.vcp and detail.vcp.found and detail.vcp.pivot_price %}
+                {{ "%.2f"|format(detail.vcp.pivot_price) }}
+            {% else %}
+                -
+            {% endif %}
+        </div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Base Depth</div>
+        <div class="metric-value">
+            {% if detail.vcp and detail.vcp.found and detail.vcp.base_depth_pct %}
+                {{ "%.1f"|format(detail.vcp.base_depth_pct) }}%
+            {% else %}
+                -
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Main content: 70/30 split -->
+<div class="grid grid-cols-1 lg:grid-cols-10 gap-6">
+
+    <!-- Left: TradingView chart (70%) -->
+    <div class="lg:col-span-7">
+        <div class="bg-bg-card border border-bg-border rounded-lg overflow-hidden">
+            <div class="px-4 py-3 border-b border-bg-border">
+                <h2 class="text-sm font-semibold text-white">{{ symbol }} — Daily Chart</h2>
+            </div>
+            <div class="tradingview-widget-container" style="height:500px">
+                <div id="tradingview-chart" style="height:100%"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                <script type="text/javascript">
+                    new TradingView.widget({
+                        "autosize": true,
+                        "symbol": "NSE:{{ symbol }}",
+                        "interval": "D",
+                        "timezone": "Asia/Kolkata",
+                        "theme": "dark",
+                        "style": "1",
+                        "locale": "en",
+                        "toolbar_bg": "#0d1117",
+                        "hide_side_toolbar": false,
+                        "allow_symbol_change": false,
+                        "studies": ["STD;SMA@tv-basicstudies|20", "STD;SMA@tv-basicstudies|50"],
+                        "container_id": "tradingview-chart",
+                        "backgroundColor": "#0d1117",
+                        "gridColor": "#21262d",
+                    });
+                </script>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right: Analysis panel (30%) -->
+    <div class="lg:col-span-3 flex flex-col gap-4">
+
+        <!-- VCP Details -->
+        {% include "partials/stock_vcp_details.html" %}
+
+        <!-- Trend Template -->
+        {% if detail.trend_template %}
+        <div class="bg-bg-card border border-bg-border rounded-lg overflow-hidden">
+            <div class="px-4 py-3 border-b border-bg-border flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-white">Trend Template</h3>
+                {% if detail.trend_template.passes %}
+                    <span class="badge badge-bullish">PASS</span>
+                {% else %}
+                    <span class="badge badge-bearish">FAIL</span>
+                {% endif %}
+            </div>
+            <div class="px-4 py-3">
+                {% if detail.trend_template.conditions %}
+                <ul class="space-y-1.5 text-sm">
+                    {% for key, val in detail.trend_template.conditions.items() %}
+                    <li class="flex items-center gap-2">
+                        {% if val %}
+                            <span class="text-accent-green text-base leading-none">&#10003;</span>
+                        {% else %}
+                            <span class="text-accent-red text-base leading-none">&#10007;</span>
+                        {% endif %}
+                        <span class="text-text-muted">{{ key.split('_', 1)[1]|replace('_', ' ')|title }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-sm text-text-muted">{{ detail.trend_template.get("reason", "No conditions available") }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Add to Watchlist -->
+        <div class="bg-bg-card border border-bg-border rounded-lg overflow-hidden">
+            <div class="px-4 py-3 border-b border-bg-border">
+                <h3 class="text-sm font-semibold text-white">Watchlist</h3>
+            </div>
+            <div class="px-4 py-3">
+                <form hx-post="/api/watchlist/add"
+                      hx-swap="none"
+                      class="flex items-center gap-2">
+                    <input type="hidden" name="symbol" value="{{ symbol }}">
+                    <select name="list_number" class="flex-1 bg-bg border border-bg-border rounded-md px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent-blue">
+                        <option value="1">List 1</option>
+                        <option value="2">List 2</option>
+                        <option value="3">List 3</option>
+                    </select>
+                    <button type="submit"
+                            class="px-3 py-1.5 bg-accent-blue/20 text-accent-blue border border-accent-blue/40 rounded-md text-sm font-medium hover:bg-accent-blue/30 transition-colors">
+                        Add
+                    </button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% else %}
+
+<!-- No data state -->
+<div class="bg-bg-card border border-bg-border rounded-lg px-6 py-12 text-center">
+    <p class="text-text-muted text-lg mb-2">No data available for {{ symbol }}</p>
+    <p class="text-text-muted text-sm">Make sure the stock has been downloaded and a screening run has been performed.</p>
+    <a href="/" class="inline-block mt-4 px-4 py-2 bg-bg-border text-text rounded-md text-sm hover:bg-[#30363d] transition-colors">
+        Back to Screener
+    </a>
+</div>
+
+{% endif %}
+
+{% endblock %}

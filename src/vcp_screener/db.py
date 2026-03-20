@@ -5,7 +5,7 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from vcp_screener.config import settings
 
-# SQLite needs check_same_thread=False for Streamlit's multi-threading
+# SQLite needs check_same_thread=False for multi-threaded access
 _connect_args = {}
 if "sqlite" in settings.db_url:
     _connect_args["check_same_thread"] = False

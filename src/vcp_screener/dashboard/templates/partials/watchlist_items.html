@@ -1,0 +1,72 @@
+<!-- Watchlist items partial -->
+{% if items and items|length > 0 %}
+    {% set gainers = [] %}
+    {% for i in items %}
+        {% if (i.change_pct or 0) > 0 %}
+            {% set _ = gainers.append(1) %}
+        {% endif %}
+    {% endfor %}
+
+    <div class="text-xs text-text-muted mb-3">
+        Watchlist #{{ list_number if list_number is defined else "1" }} —
+        {{ items|length }} stock{{ "s" if items|length != 1 else "" }} &middot;
+        {{ gainers|length }} gainer{{ "s" if gainers|length != 1 else "" }}
+    </div>
+
+    <div class="bg-bg-card border border-bg-border rounded-lg overflow-hidden">
+        {% for item in items %}
+            {% set is_mr = item.strategy == "mean_reversion" if item.strategy is defined else false %}
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-4 py-3 {% if not loop.last %}border-b border-bg-border{% endif %}">
+            <!-- Info -->
+            <div class="flex items-center gap-2 flex-1 min-w-0">
+                {% if is_mr %}
+                    <span class="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold"
+                          style="background: rgba(163,113,247,0.12); color: #a371f7; border: 1px solid rgba(163,113,247,0.3);">MR</span>
+                {% else %}
+                    <span class="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold"
+                          style="background: rgba(88,166,255,0.12); color: #58a6ff; border: 1px solid rgba(88,166,255,0.3);">VCP</span>
+                {% endif %}
+                <a href="/stock/{{ item.symbol }}" class="text-accent-blue hover:underline font-medium">{{ item.symbol }}</a>
+                {% if item.notes %}
+                    <span class="text-text-muted text-xs">&middot; {{ item.notes }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Price info -->
+            <div class="flex items-center gap-4">
+                <div class="text-sm text-right space-x-2">
+                    {% if item.current_price %}
+                        <span class="text-text">{{ "%.1f"|format(item.current_price) }}</span>
+                    {% endif %}
+                    {% if item.change_pct is defined and item.change_pct is not none %}
+                        <span class="{% if item.change_pct >= 0 %}text-positive{% else %}text-negative{% endif %}">
+                            {{ "%+.1f"|format(item.change_pct) }}%
+                        </span>
+                    {% endif %}
+                    {% if item.pivot_price and item.current_price %}
+                        {% set dist = (item.pivot_price - item.current_price) / item.pivot_price * 100 if item.pivot_price > 0 else 0 %}
+                        {% if dist > 0 %}
+                            <span class="text-text-muted text-xs">{{ "%.1f"|format(dist) }}% to pivot</span>
+                        {% else %}
+                            <span class="text-positive text-xs">Above pivot</span>
+                        {% endif %}
+                    {% endif %}
+                </div>
+
+                <!-- Remove button -->
+                <button hx-delete="/api/watchlist/{{ item.id }}"
+                        hx-target="#watchlist-content"
+                        hx-swap="innerHTML"
+                        hx-confirm="Remove {{ item.symbol }}?"
+                        class="px-2 py-1 text-xs font-medium rounded border border-bg-border text-text-muted hover:text-accent-red hover:border-accent-red/40 transition-colors">
+                    &times;
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="bg-bg-card border border-bg-border rounded-lg px-4 py-8 text-center text-text-muted text-sm">
+        No watchlist items. Add stocks from the Screener, Signals page, or the form above.
+    </div>
+{% endif %}

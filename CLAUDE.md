@@ -20,7 +20,7 @@ pytest tests/test_vcp_detector.py::test_function_name -v
 # Launch dashboard
 vcp dashboard
 # or directly:
-streamlit run src/vcp_screener/dashboard/app.py
+uvicorn vcp_screener.dashboard.app:app --port 8000
 
 # CLI commands
 vcp data download          # Full NSE stock list + OHLCV (30-60 min)
@@ -47,12 +47,12 @@ The system implements two complementary strategies that switch based on market r
 4. `backtester.py` → event-driven engine, processes days sequentially, precomputes screens for parameter sweeps
 5. `portfolio_manager.py` → position sizing (2.5% risk/trade), multi-layer trailing stops, sell signal generation
 6. `market_regime.py` → breadth calculation drives strategy switching
-7. `dashboard/app.py` → single-page Streamlit app with 6 pages rendered as sections
+7. `dashboard/app.py` → FastAPI + HTMX + Jinja2 app with URL routing (`/`, `/signals`, `/portfolio`, `/watchlist`, `/market`, `/stock/{symbol}`)
 
 ### Database
 
 - **Local**: SQLite at `data/vcp_screener.db`
-- **Cloud**: PostgreSQL via `DATABASE_URL` env var (Neon on Streamlit Cloud)
+- **Cloud**: PostgreSQL via `DATABASE_URL` env var
 - `db.py` auto-detects: if `DATABASE_URL` is set, uses PostgreSQL; otherwise SQLite
 - `init_db()` creates tables + runs `_migrate_schema()` for safe column additions
 - 6 ORM models: `Stock`, `DailyPrice`, `ScreeningResult`, `Position`, `BacktestRun`, `Watchlist`
@@ -63,7 +63,7 @@ All settings are in `config.py` as a Pydantic `Settings` class. Every field is o
 
 ### Dashboard Structure
 
-`dashboard/app.py` renders all 6 pages in sequence (not multi-page routing) with a sidebar nav that uses `st.session_state` to track the active page. Pages are in `dashboard/pages/`: screener, signals, stock detail, portfolio, backtest, market overview. Charts are in `dashboard/components/charts.py`.
+FastAPI + HTMX + Jinja2 + Tailwind CSS + TradingView. Routes in `dashboard/routes/`, templates in `dashboard/templates/` (pages + partials), static assets in `dashboard/static/`. `data_bridge.py` provides async TTL-cached wrappers around sync services via `asyncio.to_thread()`. HTMX handles partial page updates; TradingView widget for stock charts (zero server cost); Chart.js for Nifty chart.
 
 ### Watchlist System
 

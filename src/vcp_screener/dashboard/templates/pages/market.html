@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Market — VCP Screener{% endblock %}
+{% block content %}
+<div class="max-w-5xl">
+  <h1 class="text-xl font-bold text-white mb-4">Market Overview</h1>
+
+  {% if not regime %}
+    <div class="bg-bg-card border border-bg-border rounded-lg p-6 text-center text-text-muted">
+      Could not determine market regime. Check internet connectivity.
+    </div>
+  {% else %}
+    {% set regime_name = regime.get("regime", "UNKNOWN") %}
+    {% set regime_styles = {
+        "BULLISH":  {"bg": "#1a472a", "border": "#2ea043", "guidance": "Full position sizes — best conditions for VCP entries"},
+        "CAUTIOUS": {"bg": "#5c4a1e", "border": "#d29922", "guidance": "Reduce position sizes — be selective, top 10-15 only"},
+        "BEARISH":  {"bg": "#5c1a1a", "border": "#f85149", "guidance": "Avoid VCP entries — focus on MR signals and cash preservation"},
+    } %}
+    {% set style = regime_styles.get(regime_name, {"bg": "#2d333b", "border": "#444c56", "guidance": ""}) %}
+
+    {# Regime banner #}
+    <div class="rounded-lg p-3 mb-4"
+         style="background:{{ style.bg }};border:1px solid {{ style.border }}">
+      <div class="text-lg font-bold text-white">Market: {{ regime_name }}</div>
+      <div class="text-sm text-text">{{ style.guidance }}</div>
+    </div>
+
+    {# Metrics row #}
+    {% if regime.get("method") == "breadth" %}
+    <div class="grid grid-cols-3 gap-3 mb-4">
+      <div class="metric-card">
+        <div class="metric-label">Breadth</div>
+        <div class="metric-value">{{ "%.1f"|format(regime.breadth_pct) }}%</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Bull Threshold</div>
+        <div class="metric-value">&ge; {{ regime.bull_threshold }}%</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Bear Threshold</div>
+        <div class="metric-value">&lt; {{ regime.bear_threshold }}%</div>
+      </div>
+    </div>
+    {% else %}
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+      <div class="metric-card">
+        <div class="metric-label">Nifty 50</div>
+        <div class="metric-value">{{ "{:,.0f}".format(regime.nifty_close) }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">50-day SMA</div>
+        <div class="metric-value">{{ "{:,.0f}".format(regime.nifty_sma50) }}</div>
+        {% if regime.above_50sma %}
+          <div class="text-xs text-accent-green mt-1">Above</div>
+        {% else %}
+          <div class="text-xs text-accent-red mt-1">Below</div>
+        {% endif %}
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">200-day SMA</div>
+        <div class="metric-value">{{ "{:,.0f}".format(regime.nifty_sma200) }}</div>
+        {% if regime.above_200sma %}
+          <div class="text-xs text-accent-green mt-1">Above</div>
+        {% else %}
+          <div class="text-xs text-accent-red mt-1">Below</div>
+        {% endif %}
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Regime</div>
+        <div class="mt-1">
+          {% include "partials/regime_badge.html" %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {# Nifty chart #}
+    {% if nifty %}
+    <div class="bg-bg-card border border-bg-border rounded-lg p-4 mb-4">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-semibold text-white">Nifty 50</h2>
+        <div class="flex gap-1" id="tf-buttons">
+          <button onclick="filterChart('3M')"  data-tf="3M"  class="px-3 py-1 text-xs rounded border border-bg-border text-text-muted hover:text-white hover:border-accent-blue transition-colors">3M</button>
+          <button onclick="filterChart('6M')"  data-tf="6M"  class="px-3 py-1 text-xs rounded border border-bg-border text-text-muted hover:text-white hover:border-accent-blue transition-colors">6M</button>
+          <button onclick="filterChart('1Y')"  data-tf="1Y"  class="px-3 py-1 text-xs rounded border border-accent-blue text-white transition-colors">1Y</button>
+          <button onclick="filterChart('2Y')"  data-tf="2Y"  class="px-3 py-1 text-xs rounded border border-bg-border text-text-muted hover:text-white hover:border-accent-blue transition-colors">2Y</button>
+        </div>
+      </div>
+      <div style="height:400px">
+        <canvas id="nifty-chart"></canvas>
+      </div>
+    </div>
+
+    <script>
+      const niftyData = {{ nifty | tojson }};
+      let niftyChart = null;
+
+      const TF_DAYS = { '3M': 63, '6M': 126, '1Y': 252, '2Y': 504 };
+
+      function filterChart(tf) {
+        // Update button styles
+        document.querySelectorAll('#tf-buttons button').forEach(btn => {
+          if (btn.dataset.tf === tf) {
+            btn.classList.add('border-accent-blue', 'text-white');
+            btn.classList.remove('border-bg-border', 'text-text-muted');
+          } else {
+            btn.classList.remove('border-accent-blue', 'text-white');
+            btn.classList.add('border-bg-border', 'text-text-muted');
+          }
+        });
+
+        const n = TF_DAYS[tf] || 252;
+        const sliced = niftyData.slice(-n);
+        renderNiftyChart(sliced);
+      }
+
+      function renderNiftyChart(data) {
+        if (niftyChart) {
+          niftyChart.destroy();
+        }
+        initNiftyChart('nifty-chart', data);
+        // Capture the chart instance for later destruction
+        niftyChart = Chart.getChart('nifty-chart');
+      }
+
+      // Initial render at 1Y
+      document.addEventListener('DOMContentLoaded', function() {
+        filterChart('1Y');
+      });
+    </script>
+    {% endif %}
+
+    {# Trading Rules #}
+    <details class="bg-bg-card border border-bg-border rounded-lg mb-4">
+      <summary class="p-4 cursor-pointer text-sm font-semibold text-white hover:text-accent-blue">
+        Trading Rules by Regime
+      </summary>
+      <div class="px-4 pb-4">
+        <table class="text-sm">
+          <thead>
+            <tr class="text-left text-text-muted text-xs uppercase tracking-wider">
+              <th class="py-2 px-3">Regime</th>
+              <th class="py-2 px-3">VCP Entries</th>
+              <th class="py-2 px-3">MR Entries</th>
+              <th class="py-2 px-3">Position Size</th>
+              <th class="py-2 px-3">Max Positions</th>
+            </tr>
+          </thead>
+          <tbody class="text-text">
+            <tr>
+              <td class="py-2 px-3"><span class="badge badge-bullish">BULLISH</span></td>
+              <td class="py-2 px-3">Full</td>
+              <td class="py-2 px-3">Disabled</td>
+              <td class="py-2 px-3">100%</td>
+              <td class="py-2 px-3">5 (or EqMA adjusted)</td>
+            </tr>
+            <tr>
+              <td class="py-2 px-3"><span class="badge badge-cautious">CAUTIOUS</span></td>
+              <td class="py-2 px-3">Selective</td>
+              <td class="py-2 px-3">Disabled</td>
+              <td class="py-2 px-3">50-75%</td>
+              <td class="py-2 px-3">3-5</td>
+            </tr>
+            <tr>
+              <td class="py-2 px-3"><span class="badge badge-bearish">BEARISH</span></td>
+              <td class="py-2 px-3">Disabled</td>
+              <td class="py-2 px-3">Active</td>
+              <td class="py-2 px-3">MR: 1.5% risk</td>
+              <td class="py-2 px-3">3 MR positions</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="text-xs text-text-muted mt-3">
+          <strong>Regime Detection:</strong> Primary = Market breadth (% stocks &gt; 50-day SMA).
+          Bull &ge; 55%, Bear &lt; 35%, Cautious in between.
+          Fallback = Nifty 50 vs 50/200-day SMA.
+        </p>
+      </div>
+    </details>
+  {% endif %}
+</div>
+{% endblock %}

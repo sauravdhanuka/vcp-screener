@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Screener — VCP Screener{% endblock %}
+{% block content %}
+
+<!-- Header row: title + regime badge + date + Run button -->
+<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+    <div class="flex items-center gap-4">
+        <h1 class="text-xl font-bold text-white">Screener</h1>
+        {% if results and results.regime %}
+            {% set regime = results.regime|upper %}
+            {% if regime == "BULLISH" %}
+                <span class="badge badge-bullish">{{ regime }}</span>
+            {% elif regime == "CAUTIOUS" %}
+                <span class="badge badge-cautious">{{ regime }}</span>
+            {% elif regime == "BEARISH" %}
+                <span class="badge badge-bearish">{{ regime }}</span>
+            {% else %}
+                <span class="badge badge-unknown">{{ regime }}</span>
+            {% endif %}
+        {% else %}
+            <span class="badge badge-unknown">NO DATA</span>
+        {% endif %}
+        {% if results and results.date %}
+            <span class="text-sm text-text-muted">{{ results.date }}</span>
+        {% endif %}
+    </div>
+    <button hx-post="/api/screen-now"
+            hx-target="#screen-tables"
+            hx-swap="innerHTML"
+            hx-indicator="#screen-spinner"
+            class="px-4 py-2 bg-accent-blue/20 text-accent-blue border border-accent-blue/40 rounded-md text-sm font-medium hover:bg-accent-blue/30 transition-colors flex items-center gap-2">
+        <span id="screen-spinner" class="spinner htmx-indicator"></span>
+        Run Screen Now
+    </button>
+</div>
+
+<!-- Tables grid -->
+<div id="screen-tables" class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+    <!-- VCP table: 3/5 = 60% -->
+    <div class="lg:col-span-3">
+        {% include "partials/vcp_table.html" %}
+    </div>
+    <!-- MR table: 2/5 = 40% -->
+    <div class="lg:col-span-2">
+        {% include "partials/mr_table.html" %}
+    </div>
+</div>
+
+{% endblock %}
