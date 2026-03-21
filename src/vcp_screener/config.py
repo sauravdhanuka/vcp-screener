@@ -64,6 +64,10 @@ class Settings(BaseSettings):
     trailing_stop_trigger_pct: float = 30.0  # Wide: let winners run
     trailing_stop_pct: float = 12.0          # Wide trail
 
+    # Dashboard Auth
+    dashboard_user: str = ""
+    dashboard_pass: str = ""
+
     # Telegram Alerts
 
     telegram_bot_token: str = ""
