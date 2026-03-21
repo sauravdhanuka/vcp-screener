@@ -1,0 +1,50 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pytest tests/ -v --timeout=30)",
+      "Bash(python -m pytest tests/ -v --timeout=30)",
+      "Bash(python -m pytest tests/ -v)",
+      "Bash(where gcloud:*)",
+      "Read(//c/Users/gaura/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/**)",
+      "Read(//c/Program Files \\(x86\\)/Google/Cloud SDK/google-cloud-sdk/bin/**)",
+      "Read(//c/Users/gaura/AppData/Local/**)",
+      "Bash(GCLOUD=\"/c/Users/gaura/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gcloud.cmd\")",
+      "Bash(\"$GCLOUD\" compute:*)",
+      "Bash(\"$GCLOUD\" services:*)",
+      "Bash(\"/c/Users/gaura/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gcloud.cmd\" compute firewall-rules create allow-iap-ssh --direction=INGRESS --priority=1000 --network=default --action=ALLOW --rules=tcp:22 --source-ranges=35.235.240.0/20 --description=\"Allow SSH via IAP tunnel\" 2>&1)",
+      "Bash(export PATH=\"/c/Users/gaura/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin:$PATH\")",
+      "Bash(gcloud compute:*)",
+      "Bash(python:*)",
+      "WebSearch",
+      "WebFetch(domain:www.luxalgo.com)",
+      "WebFetch(domain:macro-ops.com)",
+      "WebFetch(domain:alvarezquanttrading.com)",
+      "WebFetch(domain:www.quantifiedstrategies.com)",
+      "WebFetch(domain:www.business-standard.com)",
+      "WebFetch(domain:www.bajajbroking.in)",
+      "WebFetch(domain:www.quantitativo.com)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:www.ezalgo.ai)",
+      "WebFetch(domain:www.scribd.com)",
+      "WebFetch(domain:bettersystemtrader.com)",
+      "WebFetch(domain:easylanguagemastery.com)",
+      "WebFetch(domain:www.eztrades.co)",
+      "WebFetch(domain:en.wikipedia.org)",
+      "WebFetch(domain:stockanalysis.com)",
+      "WebFetch(domain:therobusttrader.com)",
+      "WebFetch(domain:enlightenedstocktrading.com)",
+      "WebFetch(domain:www.cnbc.com)",
+      "WebFetch(domain:chartschool.stockcharts.com)",
+      "WebFetch(domain:www.tradingsetupsreview.com)",
+      "WebFetch(domain:backtestme.com)",
+      "WebFetch(domain:ftmo.com)",
+      "WebFetch(domain:erbfinancial.com)",
+      "WebFetch(domain:akme.co.in)",
+      "Bash(grep -E \"\\\\.py$\")",
+      "Bash(python3 .claude/skills/ui-ux-pro-max/scripts/search.py \"fintech trading dashboard stock screener dark mode professional\" --design-system -p \"VCP Screener\")"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "claude-flow"
+  ]
+}
