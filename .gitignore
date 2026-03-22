@@ -9,4 +9,5 @@ dist/
 build/
 .streamlit/secrets.toml
 .env
+.env_dev
 research/cache/precomputed.pkl
