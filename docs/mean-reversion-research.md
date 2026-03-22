@@ -7,7 +7,7 @@ This is a research document, not a code change plan. The goal is to fully unders
 
 ## Part 1: What Is Mean Reversion?
 
-**Core principle**: Asset prices tend to snap back toward their long-term average after deviating from it. Like a rubber band — the further it stretches, the harder it snaps back.
+**Core principle**: Asset prices tend to snap back toward their long-term average after deviating from it. Like arubber band —  the further it stretches, the harder it snaps back.
 
 **Mathematical basis**: The Ornstein-Uhlenbeck process — a stochastic model combining:
 - A deterministic drift pulling price toward a long-term mean
