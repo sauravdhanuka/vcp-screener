@@ -1,17 +1,54 @@
 {% extends "base.html" %}
-{% block title %}{{ symbol }} — VCP Screener{% endblock %}
+{% block title %}{{ symbol }} — {% if view == "mr" %}MR{% else %}VCP{% endif %} Screener{% endblock %}
 {% block content %}
 
 <!-- Breadcrumb -->
 <div class="flex items-center gap-2 text-sm text-text-muted mb-4">
-    <a href="/" class="hover:text-text transition-colors">Screener</a>
+    <a href="{% if view == 'mr' %}/signals{% else %}/{% endif %}" class="hover:text-text transition-colors">
+        {% if view == "mr" %}Signals{% else %}Screener{% endif %}
+    </a>
     <span>/</span>
     <span class="text-text font-medium">{{ symbol }}</span>
+    {% if view == "mr" %}
+        <span class="badge badge-mr-buy">MR</span>
+    {% endif %}
 </div>
 
 {% if detail %}
 
 <!-- Metrics row -->
+{% if view == "mr" %}
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+    <div class="metric-card">
+        <div class="metric-label">Close</div>
+        <div class="metric-value">{{ "%.2f"|format(detail.close) }}</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">RSI(2)</div>
+        <div class="metric-value text-accent-red">
+            {{ "%.1f"|format(mr_data.rsi_2) if mr_data else "-" }}
+        </div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Z-Score</div>
+        <div class="metric-value text-accent-red">
+            {{ "%.1f"|format(mr_data.z_score) if mr_data else "-" }}
+        </div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Entry</div>
+        <div class="metric-value text-accent-purple">
+            {{ "%.2f"|format(mr_data.entry_price) if mr_data else "-" }}
+        </div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Target</div>
+        <div class="metric-value text-accent-green">
+            {{ "%.2f"|format(mr_data.target_price) if mr_data else "-" }}
+        </div>
+    </div>
+</div>
+{% else %}
 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
     <div class="metric-card">
         <div class="metric-label">Close</div>
@@ -56,6 +93,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <!-- Main content: 70/30 split -->
 <div class="grid grid-cols-1 lg:grid-cols-10 gap-6">
@@ -63,14 +101,24 @@
     <!-- Left: Chart (70%) -->
     <div class="lg:col-span-7">
         <div class="bg-bg-card border border-bg-border rounded-lg overflow-hidden">
-            <div class="px-4 py-3 border-b border-bg-border">
+            <div class="px-4 py-3 border-b border-bg-border flex items-center justify-between">
                 <h2 class="text-sm font-semibold text-text">{{ symbol }} — Daily Chart</h2>
+                <a href="https://www.tradingview.com/chart/?symbol=NSE%3A{{ symbol }}"
+                   target="_blank" rel="noopener noreferrer"
+                   class="text-xs text-text-muted hover:text-accent-blue transition-colors flex items-center gap-1">
+                    TradingView
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                    </svg>
+                </a>
             </div>
-            <div id="chart-container" style="height:500px"></div>
+            <div id="price-chart" style="height:400px"></div>
+            <div id="rsi-chart" style="height:120px; border-top: 1px solid #1e293b"></div>
             <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
             <script>
-                const chartContainer = document.getElementById('chart-container');
-                const chart = LightweightCharts.createChart(chartContainer, {
+                // --- Price Chart ---
+                const priceContainer = document.getElementById('price-chart');
+                const chart = LightweightCharts.createChart(priceContainer, {
                     layout: { background: { color: '#0a0e17' }, textColor: '#64748b' },
                     grid: { vertLines: { color: '#1e293b' }, horzLines: { color: '#1e293b' } },
                     crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
@@ -96,15 +144,17 @@
                 });
                 volumeSeries.setData({{ volume_data_json | safe }});
 
-                // SMAs
+                // SMAs (with labels)
                 const smaColors = { 20: '#ef4444', 50: '#3b82f6', 100: '#8b5cf6', 200: '#22c55e' };
-                const smaStyles = { 20: 0, 50: 0, 100: 2, 200: 2 }; // 0=solid, 2=dotted
+                const smaStyles = { 20: 0, 50: 0, 100: 2, 200: 2 };
+                const smaLabels = { 20: 'SMA 20', 50: 'SMA 50', 100: 'SMA 100', 200: 'SMA 200' };
                 {% for period, data in sma_data.items() %}
                 (function() {
                     var s = chart.addLineSeries({
                         color: smaColors[{{ period }}],
                         lineWidth: {{ period }} <= 50 ? 1.5 : 1,
                         lineStyle: smaStyles[{{ period }}],
+                        title: smaLabels[{{ period }}],
                         crosshairMarkerVisible: false,
                         lastValueVisible: false,
                         priceLineVisible: false,
@@ -113,8 +163,8 @@
                 })();
                 {% endfor %}
 
-                // Pivot line
-                {% if detail.vcp and detail.vcp.found and detail.vcp.pivot_price %}
+                // Pivot line (VCP only)
+                {% if view != "mr" and detail.vcp and detail.vcp.found and detail.vcp.pivot_price %}
                 const pivotLine = chart.addLineSeries({
                     color: '#f59e0b',
                     lineWidth: 1,
@@ -124,21 +174,91 @@
                     priceLineVisible: false,
                     title: 'Pivot',
                 });
-                var chartData = {{ chart_data_json | safe }};
-                if (chartData.length > 0) {
+                var chartDataPivot = {{ chart_data_json | safe }};
+                if (chartDataPivot.length > 0) {
                     pivotLine.setData([
-                        { time: chartData[0].time, value: {{ detail.vcp.pivot_price }} },
-                        { time: chartData[chartData.length - 1].time, value: {{ detail.vcp.pivot_price }} },
+                        { time: chartDataPivot[0].time, value: {{ detail.vcp.pivot_price }} },
+                        { time: chartDataPivot[chartDataPivot.length - 1].time, value: {{ detail.vcp.pivot_price }} },
                     ]);
                 }
                 {% endif %}
 
+                // MR entry/stop/target lines
+                {% if view == "mr" and mr_data %}
+                (function() {
+                    var cd = {{ chart_data_json | safe }};
+                    if (cd.length > 0) {
+                        var ft = cd[0].time, lt = cd[cd.length - 1].time;
+                        var mkLine = function(color, title, val) {
+                            var l = chart.addLineSeries({
+                                color: color, lineWidth: 1, lineStyle: 2, title: title,
+                                crosshairMarkerVisible: false, lastValueVisible: true, priceLineVisible: false,
+                            });
+                            l.setData([{ time: ft, value: val }, { time: lt, value: val }]);
+                        };
+                        mkLine('#8b5cf6', 'Entry', {{ mr_data.entry_price }});
+                        mkLine('#ef4444', 'Stop', {{ mr_data.stop_price }});
+                        mkLine('#22c55e', 'Target', {{ mr_data.target_price }});
+                    }
+                })();
+                {% endif %}
+
                 chart.timeScale().fitContent();
 
-                // Resize handler
-                new ResizeObserver(() => {
-                    chart.applyOptions({ width: chartContainer.clientWidth });
-                }).observe(chartContainer);
+                // --- RSI(14) Chart ---
+                const rsiContainer = document.getElementById('rsi-chart');
+                const rsiChart = LightweightCharts.createChart(rsiContainer, {
+                    layout: { background: { color: '#0a0e17' }, textColor: '#64748b' },
+                    grid: { vertLines: { color: '#1e293b' }, horzLines: { color: '#1e293b' } },
+                    rightPriceScale: { borderColor: '#1e293b' },
+                    timeScale: { borderColor: '#1e293b', timeVisible: false, visible: true },
+                    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+                });
+
+                var rsiData = {{ rsi_data_json | safe }};
+                if (rsiData.length > 0) {
+                    var rsiSeries = rsiChart.addLineSeries({
+                        color: '#f59e0b', lineWidth: 1.5, title: 'RSI(14)',
+                        priceLineVisible: false, lastValueVisible: true,
+                    });
+                    rsiSeries.setData(rsiData);
+
+                    // Overbought (70) and oversold (30) reference lines
+                    var ft = rsiData[0].time, lt = rsiData[rsiData.length - 1].time;
+                    var obLine = rsiChart.addLineSeries({
+                        color: '#ef444450', lineWidth: 1, lineStyle: 2,
+                        crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false,
+                    });
+                    obLine.setData([{ time: ft, value: 70 }, { time: lt, value: 70 }]);
+                    var osLine = rsiChart.addLineSeries({
+                        color: '#22c55e50', lineWidth: 1, lineStyle: 2,
+                        crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false,
+                    });
+                    osLine.setData([{ time: ft, value: 30 }, { time: lt, value: 30 }]);
+                }
+
+                rsiChart.timeScale().fitContent();
+
+                // Sync time scales between price and RSI charts
+                var isSyncing = false;
+                chart.timeScale().subscribeVisibleLogicalRangeChange(function(range) {
+                    if (isSyncing || !range) return;
+                    isSyncing = true;
+                    rsiChart.timeScale().setVisibleLogicalRange(range);
+                    isSyncing = false;
+                });
+                rsiChart.timeScale().subscribeVisibleLogicalRangeChange(function(range) {
+                    if (isSyncing || !range) return;
+                    isSyncing = true;
+                    chart.timeScale().setVisibleLogicalRange(range);
+                    isSyncing = false;
+                });
+
+                // Resize handlers
+                new ResizeObserver(function() {
+                    chart.applyOptions({ width: priceContainer.clientWidth });
+                    rsiChart.applyOptions({ width: rsiContainer.clientWidth });
+                }).observe(priceContainer);
             </script>
         </div>
     </div>
@@ -146,39 +266,47 @@
     <!-- Right: Analysis panel (30%) -->
     <div class="lg:col-span-3 flex flex-col gap-4">
 
-        <!-- VCP Details -->
-        {% include "partials/stock_vcp_details.html" %}
+        {% if view == "mr" %}
+            <!-- MR Details -->
+            {% include "partials/stock_mr_details.html" %}
 
-        <!-- Trend Template -->
-        {% if detail.trend_template %}
-        <div class="bg-bg-card border border-bg-border rounded-lg overflow-hidden">
-            <div class="px-4 py-3 border-b border-bg-border flex items-center justify-between">
-                <h3 class="text-sm font-semibold text-text">Trend Template</h3>
-                {% if detail.trend_template.passes %}
-                    <span class="badge badge-bullish">PASS</span>
-                {% else %}
-                    <span class="badge badge-bearish">FAIL</span>
-                {% endif %}
+            <!-- MR Checklist -->
+            {% include "partials/stock_mr_checklist.html" %}
+        {% else %}
+            <!-- VCP Details -->
+            {% include "partials/stock_vcp_details.html" %}
+
+            <!-- Trend Template -->
+            {% if detail.trend_template %}
+            <div class="bg-bg-card border border-bg-border rounded-lg overflow-hidden">
+                <div class="px-4 py-3 border-b border-bg-border flex items-center justify-between">
+                    <h3 class="text-sm font-semibold text-text">Trend Template</h3>
+                    {% if detail.trend_template.passes %}
+                        <span class="badge badge-bullish">PASS</span>
+                    {% else %}
+                        <span class="badge badge-bearish">FAIL</span>
+                    {% endif %}
+                </div>
+                <div class="px-4 py-3">
+                    {% if detail.trend_template.conditions %}
+                    <ul class="space-y-1.5 text-sm">
+                        {% for key, val in detail.trend_template.conditions.items() %}
+                        <li class="flex items-center gap-2">
+                            {% if val %}
+                                <span class="text-accent-green text-base leading-none">&#10003;</span>
+                            {% else %}
+                                <span class="text-accent-red text-base leading-none">&#10007;</span>
+                            {% endif %}
+                            <span class="text-text-muted">{{ key.split('_', 1)[1]|replace('_', ' ')|title }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-sm text-text-muted">{{ detail.trend_template.get("reason", "No conditions available") }}</p>
+                    {% endif %}
+                </div>
             </div>
-            <div class="px-4 py-3">
-                {% if detail.trend_template.conditions %}
-                <ul class="space-y-1.5 text-sm">
-                    {% for key, val in detail.trend_template.conditions.items() %}
-                    <li class="flex items-center gap-2">
-                        {% if val %}
-                            <span class="text-accent-green text-base leading-none">&#10003;</span>
-                        {% else %}
-                            <span class="text-accent-red text-base leading-none">&#10007;</span>
-                        {% endif %}
-                        <span class="text-text-muted">{{ key.split('_', 1)[1]|replace('_', ' ')|title }}</span>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <p class="text-sm text-text-muted">{{ detail.trend_template.get("reason", "No conditions available") }}</p>
-                {% endif %}
-            </div>
-        </div>
+            {% endif %}
         {% endif %}
 
         <!-- Add to Watchlist -->

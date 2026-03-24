@@ -1,0 +1,89 @@
+{# MR Visual Checklist — human reference, not computed #}
+<div class="bg-bg-card border border-bg-border rounded-lg overflow-hidden">
+    <div class="px-4 py-3 border-b border-bg-border">
+        <h3 class="text-sm font-semibold text-text">MR Checklist</h3>
+    </div>
+    <div class="px-4 py-3 space-y-3">
+
+        {# Green Flags #}
+        <div>
+            <p class="text-xs text-accent-green uppercase tracking-wider font-semibold mb-1.5">Green Flags</p>
+            <ul class="space-y-1 text-xs text-text-muted">
+                <li class="flex items-start gap-2">
+                    <span class="text-accent-green mt-0.5 shrink-0">&#9679;</span>
+                    <span>200-SMA intact (price above or recently above)</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-accent-green mt-0.5 shrink-0">&#9679;</span>
+                    <span>Clean prior support visible</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-accent-green mt-0.5 shrink-0">&#9679;</span>
+                    <span>RSI divergence (lower price low, higher RSI low)</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-accent-green mt-0.5 shrink-0">&#9679;</span>
+                    <span>Volume exhaustion (spike then dry-up)</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-accent-green mt-0.5 shrink-0">&#9679;</span>
+                    <span>Sector holding up</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-accent-green mt-0.5 shrink-0">&#9679;</span>
+                    <span>Reversal candle closed (hammer / engulfing)</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-accent-green mt-0.5 shrink-0">&#9679;</span>
+                    <span>Most negative z-score among candidates</span>
+                </li>
+            </ul>
+        </div>
+
+        {# Red Flags #}
+        <div class="border-t border-bg-border pt-2">
+            <p class="text-xs text-accent-red uppercase tracking-wider font-semibold mb-1.5">Red Flags</p>
+            <ul class="space-y-1 text-xs text-text-muted">
+                <li class="flex items-start gap-2">
+                    <span class="text-accent-red mt-0.5 shrink-0">&#9679;</span>
+                    <span>Below declining 200-SMA (Stage 4)</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-accent-red mt-0.5 shrink-0">&#9679;</span>
+                    <span>Fundamental catalyst (earnings miss, debt crisis)</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-accent-red mt-0.5 shrink-0">&#9679;</span>
+                    <span>Walking the lower Bollinger Band</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-accent-red mt-0.5 shrink-0">&#9679;</span>
+                    <span>No volume climax (slow bleed, no capitulation)</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-accent-red mt-0.5 shrink-0">&#9679;</span>
+                    <span>Entire sector collapsing</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-accent-red mt-0.5 shrink-0">&#9679;</span>
+                    <span>ADX &gt; 30 and rising (strong trend)</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-accent-red mt-0.5 shrink-0">&#9679;</span>
+                    <span>Near earnings or major event</span>
+                </li>
+            </ul>
+        </div>
+
+        {# 30-Second Visual Scan #}
+        <div class="border-t border-bg-border pt-2">
+            <p class="text-xs text-accent-blue uppercase tracking-wider font-semibold mb-1.5">30-Second Scan</p>
+            <ol class="space-y-1 text-xs text-text-muted list-decimal list-inside">
+                <li>Zoom out to 1-year daily. Overall trend up or flat? If no, skip.</li>
+                <li>Price visibly stretched below MAs? If no, skip.</li>
+                <li>Reversal candle or RSI divergence forming? If no, deprioritize.</li>
+                <li>Volume dried up after a spike? If yes, top of list.</li>
+            </ol>
+        </div>
+    </div>
+</div>
