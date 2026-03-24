@@ -2,6 +2,7 @@
 
 import json
 
+import numpy as np
 from fastapi import APIRouter, Request
 
 from vcp_screener.dashboard.app import templates
@@ -10,15 +11,29 @@ router = APIRouter()
 
 
 @router.get("/stock/{symbol}")
-async def stock_detail_page(request: Request, symbol: str):
-    from vcp_screener.dashboard.services.data_bridge import get_stock_detail
+async def stock_detail_page(request: Request, symbol: str, view: str = "vcp"):
+    from vcp_screener.dashboard.services.data_bridge import (
+        get_mr_results,
+        get_stock_detail,
+    )
 
     detail = await get_stock_detail(symbol.upper())
+
+    # Fetch MR data when view=mr
+    mr_data = None
+    if view == "mr":
+        mr_results = await get_mr_results()
+        if mr_results:
+            for r in mr_results:
+                if r["symbol"] == symbol.upper():
+                    mr_data = r
+                    break
 
     # Serialize OHLCV data for Lightweight Charts
     chart_data_json = "[]"
     volume_data_json = "[]"
     sma_data = {}
+    rsi_data_json = "[]"
     if detail and detail.get("price_data") is not None:
         df = detail["price_data"]
         chart_data = []
@@ -51,6 +66,19 @@ async def stock_detail_page(request: Request, symbol: str):
                     for d, v in sma.items() if not (v != v)  # skip NaN
                 ])
 
+        # Compute RSI(14) — Wilder's smoothing
+        delta = close.diff()
+        gain = delta.where(delta > 0, 0.0)
+        loss = (-delta).where(delta < 0, 0.0)
+        avg_gain = gain.ewm(alpha=1 / 14, min_periods=14, adjust=False).mean()
+        avg_loss = loss.ewm(alpha=1 / 14, min_periods=14, adjust=False).mean()
+        rs = avg_gain / avg_loss
+        rsi = 100 - (100 / (1 + rs))
+        rsi_data_json = json.dumps([
+            {"time": d.strftime("%Y-%m-%d"), "value": round(float(v), 2)}
+            for d, v in rsi.items() if not (np.isnan(v))
+        ])
+
     return templates.TemplateResponse(
         "pages/stock_detail.html",
         {
@@ -58,8 +86,11 @@ async def stock_detail_page(request: Request, symbol: str):
             "active_nav": "screener",
             "symbol": symbol.upper(),
             "detail": detail,
+            "view": view,
+            "mr_data": mr_data,
             "chart_data_json": chart_data_json,
             "volume_data_json": volume_data_json,
             "sma_data": sma_data,
+            "rsi_data_json": rsi_data_json,
         },
     )

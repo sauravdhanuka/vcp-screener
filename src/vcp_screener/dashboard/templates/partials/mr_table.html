@@ -24,9 +24,9 @@
             </thead>
             <tbody>
                 {% for item in mr_signals %}
-                <tr data-href="/stock/{{ item.symbol }}" class="hover:bg-bg-hover cursor-pointer">
+                <tr data-href="/stock/{{ item.symbol }}?view=mr" class="hover:bg-bg-hover cursor-pointer">
                     <td class="px-3 py-2">
-                        <a href="/stock/{{ item.symbol }}" class="text-accent-purple hover:underline font-medium">{{ item.symbol }}</a>
+                        <a href="/stock/{{ item.symbol }}?view=mr" class="text-accent-purple hover:underline font-medium">{{ item.symbol }}</a>
                     </td>
                     <td class="px-3 py-2 text-right text-text font-mono">{{ "%.2f"|format(item.close) }}</td>
                     <td class="px-3 py-2 text-right text-accent-red font-medium font-mono">{{ "%.1f"|format(item.rsi_2) }}</td>

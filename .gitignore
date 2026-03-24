@@ -11,3 +11,5 @@ build/
 .env
 .env_dev
 research/cache/precomputed.pkl
+.claude
+.claude_dev

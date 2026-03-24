@@ -161,7 +161,7 @@
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 flex-wrap">
           <span class="badge badge-mr-buy">MR BUY</span>
-          <a href="/stock/{{ s.symbol }}" class="font-bold text-text hover:text-accent-blue transition-colors">{{ s.symbol }}</a>
+          <a href="/stock/{{ s.symbol }}?view=mr" class="font-bold text-text hover:text-accent-blue transition-colors">{{ s.symbol }}</a>
           <span class="text-text-muted text-xs">RSI(2) <span class="font-mono">{{ s.rsi_2|round(1) }}</span> &middot; IBS <span class="font-mono">{{ s.ibs|round(2) }}</span> &middot; Z <span class="font-mono">{{ s.z_score|round(1) }}</span></span>
         </div>
         <div class="text-sm mt-1">
